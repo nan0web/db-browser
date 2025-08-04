@@ -1,0 +1,33 @@
+{
+	"name": "@nanoweb/db-browser",
+	"version": "1.0.0",
+	"description": "Browser Database client for nan0 web with authentication support, loading, saving, and deleting private documents when authorized.",
+	"main": "src/index.js",
+	"type": "module",
+	"scripts": {
+		"test": "node --test"
+	},
+	"keywords": [
+		"nan0",
+		"database",
+		"browser",
+		"authentication",
+		"http",
+		"json"
+	],
+	"author": "ЯRаСлав YaRaSLove <support@yaro.page>",
+	"license": "ISC",
+	"packageManager": "pnpm@10.11.0",
+	"devDependencies": {
+		"@nanoweb/auth-core": "link:../auth-core",
+		"@nanoweb/db": "link:../db",
+		"@nanoweb/http": "link:../http",
+		"@nanoweb/types": "link:../types",
+		"@nanoweb/test": "link:../test"
+	},
+	"peerDependencies": {
+		"@nanoweb/db": "^1.0.0",
+		"@nanoweb/http": "^1.0.0",
+		"@nanoweb/types": "^1.0.0"
+	}
+}
