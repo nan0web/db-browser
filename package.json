@@ -1,7 +1,7 @@
 {
 	"name": "@nan0web/db-browser",
 	"version": "1.0.0",
-	"description": "Browser Database client for nan0 web with authentication support, loading, saving, and deleting private documents when authorized.",
+	"description": "Browser Database client as extension of @nan0web/db",
 	"main": "src/index.js",
 	"types": "types/index.d.ts",
 	"type": "module",
