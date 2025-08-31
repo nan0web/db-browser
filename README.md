@@ -1,4 +1,4 @@
-# @nanoweb/db-browser
+# @nan0web/db-browser
 
 Browser Database client for any data to fetch or api to connect.
 
@@ -14,7 +14,7 @@ Browser Database client for any data to fetch or api to connect.
 ## Installation
 
 ```bash
-npm install @nanoweb/db-browser
+npm install @nan0web/db-browser
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ npm install @nanoweb/db-browser
 ### Basic BrowserDB Usage
 
 ```javascript
-import BrowserDB from '@nanoweb/db-browser'
+import BrowserDB from '@nan0web/db-browser'
 
 // Initialize with default settings
 const db = new BrowserDB({
@@ -48,7 +48,7 @@ await db.dropDocument('users.json')
 > !!! Still with some errors, BrowserDB without.
 
 ```javascript
-import DataDB from '@nanoweb/db-browser'
+import DataDB from '@nan0web/db-browser'
 
 const db = new DataDB({
 	host: 'https://api.example.com',

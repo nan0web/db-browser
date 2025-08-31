@@ -1,6 +1,6 @@
-import DB from "@nanoweb/db"
-import { oneOf } from "@nanoweb/types"
-import { HTTPResponseMessage, HTTPError } from "@nanoweb/http"
+import DB from "@nan0web/db"
+import { HTTPError } from "@nan0web/http"
+import BrowserDirectory from "./Directory.js"
 
 /**
  * @goal
@@ -16,70 +16,74 @@ import { HTTPResponseMessage, HTTPError } from "@nanoweb/http"
  * - Every known vulnerability must be included in test;
  */
 class BrowserDB extends DB {
-	static #EmptyFn = () => ({
-		ok: false,
-		json: async () => ({ error: "fetchFn() not implemented and no window.fetch()" }),
-	})
-	static FetchFn = "undefined" === typeof window ? BrowserDB.#EmptyFn : window.fetch
-	/** @type {string} */
-	me = ''
-	/** @type {string} */
-	extension = '.json'
-	/** @type {string} */
-	indexFile = 'index.json'
-	/** @type {string} */
-	localIndexFile = 'index.d.json'
-	/** @type {number} */
-	timeout
+	static Directory = BrowserDirectory
+	static FetchOptions = DB.FetchOptions
+
 	/** @type {Function} */
-	fetchFn
+	static FetchFn = typeof window !== 'undefined'
+		? window.fetch.bind(window)
+		: async () => { throw new Error('Fetch not available in this environment') }
+
+	/** @type {string} */
+	// me = ''
+	/** @type {number} */
+	timeout = 6_000
+	/** @type {Function} */
+	fetchFn = BrowserDB.FetchFn
 
 	/**
-	 * @param {object} input
+	 * @param {object} [input]
 	 * @param {string} [input.host] - window.location.origin
-	 * @param {string} [input.extension='.json']
 	 * @param {string} [input.indexFile='index.json']
 	 * @param {string} [input.localIndexFile='index.d.json']
 	 * @param {number} [input.timeout=6_000] - Request timeout in milliseconds
-	 * @param {Function} [input.fetchFn] - Custom fetch function, @nanoweb/http for node.js.
+	 * @param {Function} [input.fetchFn] - Custom fetch function
+	 * @param {string} [input.root] - Base href (root) for the current DB
+	 * @param {Console} [input.console] - The console for messages
 	 */
 	constructor(input = {}) {
 		const {
-			host = "undefined" === typeof window ? "http://localhost" : window.location.origin,
-			me = "",
-			extension = ".json",
-			indexFile = "index.json",
-			localIndexFile = "index.d.json",
+			/**
+			 * @note window.location.origin returns null in happy-dom.
+			 */
+			host = "undefined" === typeof window || "null" === window.location.origin
+				? "http://localhost" : window.location.origin,
+			// me = "",
 			timeout = 6_000,
 			fetchFn = BrowserDB.FetchFn,
 			root = "/",
+			console: initialConsole = console,
 		} = input
 		super({ ...input, root })
 		if (host) {
 			this.cwd = host
 		}
-		this.me = String(me)
-		this.extension = String(extension)
-		this.indexFile = String(indexFile)
-		this.localIndexFile = String(localIndexFile)
+		// this.me = String(me)
 		this.timeout = Number(timeout)
 		this.fetchFn = fetchFn
+		this.console = initialConsole
 	}
 
 	get host() {
 		return this.cwd
 	}
 
+	async connect() {
+		await super.connect()
+		if ("undefined" === typeof window) {
+			console.error("Window.fetch must be a function")
+		}
+	}
+
 	/**
 	 * @param {string} uri
 	 * @param {string} level
-	 * @returns {Promise<boolean>}
+	 * @returns {Promise<void>}
 	 */
 	async ensureAccess(uri, level = 'r') {
-		if (!oneOf('r', 'w', 'd')(level)) {
+		if (!["r", "w", "d"].includes(level)) {
 			throw new TypeError('Access level must be one of [r, w, d]')
 		}
-		return true
 	}
 
 	/**
@@ -94,9 +98,9 @@ class BrowserDB extends DB {
 	 * Fetches a document with authentication headers if available
 	 * @param {string} uri - The URI to fetch
 	 * @param {object} [requestInit={}] - Fetch request initialization options
-	 * @returns {Promise<HTTPResponseMessage>} Fetch response
+	 * @returns {Promise<Response>} Fetch response
 	 */
-	async fetch(uri, requestInit = {}) {
+	async fetchRemote(uri, requestInit = {}) {
 		try {
 			const url = await this.resolve(this.cwd, this.root)
 			const href = new URL(uri, url).href
@@ -108,13 +112,30 @@ class BrowserDB extends DB {
 			}, this.timeout)
 
 			try {
-				const response = await this.fetchFn(href, {
+				let response = await this.fetchFn(href, {
 					...requestInit,
 					signal: controller.signal
 				})
 				clearTimeout(timeoutId)
+				let check = false
+				const headers = new Map(response.headers ?? [])
+				if (headers.has("content-type")) {
+					const [,contentExt] = headers.get("content-type").split("/")
+					if (this.Directory.DATA_EXTNAMES.every(e => !e.endsWith("/" + contentExt.slice(1)))) {
+						check = true
+					}
+				}
+				if (check && !this.extname(uri)) {
+					for (const ext of this.Directory.DATA_EXTNAMES) {
+						const href = uri + ext
+						response = await this.fetchRemote(href, requestInit)
+						if (response.ok) {
+							break
+						}
+					}
+				}
 				return response
-			} catch (err) {
+			} catch (/** @type {any} */ err) {
 				clearTimeout(timeoutId)
 				if (err.name === 'AbortError') {
 					throw new HTTPError('Request timeout', 408)
@@ -133,15 +154,8 @@ class BrowserDB extends DB {
 	 */
 	async load() {
 		try {
-			const localIndex = await this.loadDocument(this.localIndexFile)
-			if (localIndex) return localIndex
-		} catch (e) {
-			// Ignore local index failure
-		}
-
-		try {
-			const globalIndex = await this.loadDocument(this.indexFile)
-			return globalIndex || {}
+			const localIndex = await this.fetchRemote(this.Directory.INDEX)
+			return localIndex || {}
 		} catch (e) {
 			return {}
 		}
@@ -149,11 +163,12 @@ class BrowserDB extends DB {
 
 	/**
 	 * Throw an HTTPError with appropriate message from response
-	 * @param {HTTPResponseMessage} response - Response object to extract error message from
+	 * @param {Response} response - Response object to extract error message from
 	 * @param {string} message - Default error message
 	 * @throws {HTTPError} Throws formatted error message
 	 */
 	async throwError(response, message) {
+		/** @type {any} */
 		let json = null
 		try { json = await response.json() } catch {
 			try { json = await response.text() } catch { }
@@ -166,13 +181,15 @@ class BrowserDB extends DB {
 	/**
 	 * @override
 	 * @param {string} uri
+	 * @param {any} [defaultValue]
 	 * @returns {Promise<any>}
 	 */
-	async loadDocument(uri) {
+	async loadDocument(uri, defaultValue) {
 		await this.ensureAccess(uri, 'r')
-		const response = await this.fetch(uri)
+		const response = await this.fetchRemote(uri)
 		if (!response.ok) {
-			await this.throwError(response, ["Failed to load document", uri].join(": "))
+			console.warn(["Failed to load document", uri].join(": "))
+			return defaultValue
 		}
 		return response.json()
 	}
@@ -185,7 +202,7 @@ class BrowserDB extends DB {
 	 */
 	async saveDocument(uri, document) {
 		await this.ensureAccess(uri, 'w')
-		const response = await this.fetch(uri, {
+		const response = await this.fetchFn(uri, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(document)
@@ -200,11 +217,11 @@ class BrowserDB extends DB {
 	 * @override
 	 * @param {string} uri
 	 * @param {any} document
-	 * @returns {Promise<boolean>}
+	 * @returns {Promise<any>}
 	 */
 	async writeDocument(uri, document) {
 		await this.ensureAccess(uri, 'w')
-		const response = await this.fetch(uri, {
+		const response = await this.fetchRemote(uri, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(document)
@@ -212,7 +229,16 @@ class BrowserDB extends DB {
 		if (!response.ok) {
 			await this.throwError(response, ["Failed to write document", uri].join(": "))
 		}
-		return response.json()
+		/** @type {any} */
+		let result = true
+		try {
+			result = await response.json()
+		} catch {
+			try {
+				result = await response.text()
+			} catch {}
+		}
+		return result
 	}
 
 	/**
@@ -222,13 +248,12 @@ class BrowserDB extends DB {
 	 */
 	async dropDocument(uri) {
 		await this.ensureAccess(uri, 'd')
-		const response = await this.fetch(uri, { method: 'DELETE' })
+		const response = await this.fetchRemote(uri, { method: 'DELETE' })
 		if (!response.ok) {
 			await this.throwError(response, ["Failed to delete document", uri].join(": "))
 		}
 		return true
 	}
-
 }
 
 export default BrowserDB

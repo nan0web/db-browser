@@ -1,6 +1,5 @@
 import BrowserDB from './BrowserDB.js'
-import DataDB from './DataDB.js'
-import AuthDB from './AuthDB.js'
+import BrowserDirectory from "./Directory.js"
 
-export { BrowserDB, DataDB, AuthDB }
+export { BrowserDB, BrowserDirectory }
 export default BrowserDB

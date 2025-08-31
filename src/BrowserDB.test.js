@@ -1,8 +1,8 @@
 import { describe, it, beforeEach, mock } from 'node:test'
 import assert from 'node:assert/strict'
-import { HTTPError } from '@nanoweb/http'
+import "@nan0web/test/jsdom"
+import { HTTPError } from '@nan0web/http'
 import BrowserDB from './BrowserDB.js'
-
 describe('BrowserDB', () => {
 	/** @type {BrowserDB} */
 	let db
@@ -14,7 +14,6 @@ describe('BrowserDB', () => {
 	describe('constructor', () => {
 		it('should initialize with default values', () => {
 			const defaultDB = new BrowserDB()
-			assert.equal(defaultDB.me, '')
 			assert.equal(defaultDB.extension, '.json')
 			assert.equal(defaultDB.indexFile, 'index.json')
 			assert.equal(defaultDB.localIndexFile, 'index.d.json')
@@ -23,13 +22,11 @@ describe('BrowserDB', () => {
 
 		it('should initialize with custom values', () => {
 			const customDB = new BrowserDB({
-				me: 'test-user',
 				extension: '.nano',
 				indexFile: 'data.json',
 				localIndexFile: 'local.json',
 				timeout: 10_000
 			})
-			assert.equal(customDB.me, 'test-user')
 			assert.equal(customDB.extension, '.nano')
 			assert.equal(customDB.indexFile, 'data.json')
 			assert.equal(customDB.localIndexFile, 'local.json')
@@ -59,6 +56,62 @@ describe('BrowserDB', () => {
 		it('should normalize duplicate slashes', async () => {
 			const resolved = await db.resolve('http://localhost/', '/api/', '/users.json')
 			assert.equal(resolved, 'http://localhost/api/users.json')
+		})
+	})
+
+	describe('fetchRemote', () => {
+		it('should fetch document successfully', async () => {
+			const mockResponse = {
+				url: 'http://localhost/test.json',
+				headers: new Map(),
+				ok: true,
+				status: 200,
+				statusText: 'OK',
+				type: 'basic',
+				redirected: false,
+				text: async () => JSON.stringify({ content: 'test' })
+			}
+
+			db.fetchFn = mock.fn(async () => mockResponse)
+
+			const result = await db.fetchRemote('test.json')
+			assert.equal(result.ok, true)
+			assert.equal(result.status, 200)
+			assert.deepEqual(await result.json(), { content: 'test' })
+		})
+
+		it('should throw HTTPError on timeout', async () => {
+			db.fetchFn = mock.fn(async () => {
+				return new Promise((resolve) => {
+					setTimeout(() => resolve({ ok: true }), 10_000)
+				})
+			})
+			db.timeout = 100
+
+			await assert.rejects(
+				async () => await db.fetchRemote('test.json'),
+				(err) => {
+					assert.ok(err instanceof HTTPError)
+					assert.equal(err.message, 'Request timeout')
+					assert.equal(err.status, 408)
+					return true
+				}
+			)
+		})
+
+		it('should throw original error when not timeout', async () => {
+			const error = new Error('Network error')
+			db.fetchFn = mock.fn(async () => {
+				throw error
+			})
+
+			await assert.rejects(
+				async () => await db.fetchRemote('test.json'),
+				(err) => {
+					assert.equal(err, error)
+					return true
+				}
+			)
 		})
 	})
 
@@ -119,7 +172,7 @@ describe('BrowserDB', () => {
 			assert.deepEqual(result, { content: 'test' })
 		})
 
-		it('should throw error on failed request', async () => {
+		it('should return defaultValue on failed request', async () => {
 			db.fetchFn = mock.fn(async (url, options) => {
 				return {
 					ok: false,
@@ -128,10 +181,8 @@ describe('BrowserDB', () => {
 				}
 			})
 
-			await assert.rejects(
-				async () => await db.loadDocument('missing.json'),
-				HTTPError
-			)
+			const result = await db.loadDocument('missing.json', { default: true })
+			assert.deepEqual(result, { default: true })
 		})
 	})
 
