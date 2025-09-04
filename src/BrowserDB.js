@@ -93,6 +93,55 @@ class BrowserDB extends DB {
 		}
 	}
 
+	/**
+	 * Compute the relative path from one URI to another
+	 * @param {string} from - The base URI
+	 * @param {string} to - The target URI
+	 * @returns {string} The relative path between the two URIs
+	 */
+	relative(from, to) {
+		const fromUrl = new URL(from, this.cwd + this.root)
+		const toUrl = new URL(to, this.cwd + this.root)
+
+		// If hosts are different, return the absolute URL
+		if (fromUrl.origin !== toUrl.origin) {
+			return to
+		}
+
+		const fromSegments = fromUrl.pathname.split('/').filter(segment => segment.length > 0)
+		const toSegments = toUrl.pathname.split('/').filter(segment => segment.length > 0)
+
+		// Find the common prefix
+		let commonLength = 0
+		while (commonLength < fromSegments.length && 
+			   commonLength < toSegments.length && 
+			   fromSegments[commonLength] === toSegments[commonLength]) {
+			commonLength++
+		}
+
+		// Calculate how many directories to go up from the "from" path
+		const upSegments = fromSegments.length - commonLength - 1
+		const remainingToSegments = toSegments.slice(commonLength)
+
+		// Build the relative path
+		const relativeSegments = []
+		for (let i = 0; i < upSegments; i++) {
+			relativeSegments.push('..')
+		}
+		relativeSegments.push(...remainingToSegments)
+
+		// If both paths refer to the same file, return '.'
+		if (relativeSegments.length === 0) {
+			return '.'
+		}
+
+		const relativePath = relativeSegments.join('/')
+		const search = toUrl.search
+		const hash = toUrl.hash
+
+		return relativePath + search + hash
+	}
+
 	resolveSync(...args) {
 		if (args.length === 0) {
 			return this.cwd + this.root
@@ -138,6 +187,7 @@ class BrowserDB extends DB {
 		try {
 			let url = await this.resolve(this.cwd, this.root)
 			if (!url.includes("//")) url = this.cwd + url
+			if (!url.endsWith("/")) url += "/"
 			const href = new URL(uri, url).href
 
 			// Add timeout handling
@@ -227,7 +277,7 @@ class BrowserDB extends DB {
 		if (404 === response.status) return new DocumentStat()
 
 		const headers = new Map(response.headers ?? [])
-		const lastModified = headers.get("Last-Modified")
+		const lastModified = headers.get("Last-Modified") || headers.get("Date")
 		const mtimeMs = lastModified ? new Date(lastModified).getTime() : 0
 
 		return new DocumentStat({

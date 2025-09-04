@@ -105,6 +105,57 @@ describe('BrowserDB', () => {
 		})
 	})
 
+	describe("relative", () => {
+		it("should compute relative path between same host URLs", () => {
+			const from = "http://localhost/api/users/list.json"
+			const to = "http://localhost/api/posts/recent.json"
+			const result = db.relative(from, to)
+			assert.equal(result, "../posts/recent.json")
+		})
+
+		it("should compute relative path with query parameters and hash", () => {
+			const from = "http://localhost/api/users/"
+			const to = "http://localhost/api/users/profile.json?tab=settings#info"
+			const result = db.relative(from, to)
+			assert.equal(result, "profile.json?tab=settings#info")
+		})
+
+		it("should return absolute path when hosts differ", () => {
+			const from = "http://localhost/api/users/"
+			const to = "https://example.com/api/posts/"
+			const result = db.relative(from, to)
+			assert.equal(result, "https://example.com/api/posts/")
+		})
+
+		it("should handle paths in same directory", () => {
+			const from = "http://localhost/api/data.json"
+			const to = "http://localhost/api/info.json"
+			const result = db.relative(from, to)
+			assert.equal(result, "info.json")
+		})
+
+		it("should handle identical paths", () => {
+			const from = "http://localhost/api/data.json"
+			const to = "http://localhost/api/data.json"
+			const result = db.relative(from, to)
+			assert.equal(result, ".")
+		})
+
+		it("should handle root paths", () => {
+			const from = "http://localhost/"
+			const to = "http://localhost/api/info.json"
+			const result = db.relative(from, to)
+			assert.equal(result, "api/info.json")
+		})
+
+		it("should handle sibling directory navigation", () => {
+			const from = "http://localhost/api/users/list"
+			const to = "http://localhost/api/posts/recent"
+			const result = db.relative(from, to)
+			assert.equal(result, "../posts/recent")
+		})
+	})
+
 	describe("fetch", () => {
 		it("should not go into infinite loop", async () => {
 			const db = new BrowserDB({ cwd: "http://localhost", root: "/", timeout: 99 })
