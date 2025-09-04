@@ -1,4 +1,4 @@
-import DB from "@nan0web/db"
+import DB, { DocumentStat } from "@nan0web/db"
 import { HTTPError } from "@nan0web/http"
 import BrowserDirectory from "./Directory.js"
 
@@ -213,6 +213,28 @@ class BrowserDB extends DB {
 		throw new HTTPError(
 			String(json?.error ?? json?.message ?? json ?? message), response.status
 		)
+	}
+
+	/**
+	 * Get document statistics (file metadata) from remote server using HEAD request
+	 * @param {string} uri - The URI of the document to get stats for
+	 * @returns {Promise<DocumentStat>} Document statistics object
+	 */
+	async statDocument(uri) {
+		const stat = await super.statDocument(uri)
+		if (stat.exists) return stat
+		const response = await this.fetchRemote(uri, { method: 'HEAD' })
+		if (404 === response.status) return new DocumentStat()
+
+		const headers = new Map(response.headers ?? [])
+		const lastModified = headers.get("Last-Modified")
+		const mtimeMs = lastModified ? new Date(lastModified).getTime() : 0
+
+		return new DocumentStat({
+			isFile: true,
+			mtimeMs,
+			size: Number(headers.get("Content-Length") || 0),
+		})
 	}
 
 	/**

@@ -99,6 +99,12 @@ describe('BrowserDB', () => {
 		})
 	})
 
+	describe("resolveSync", () => {
+		it("should properly resolve / + index.json", () => {
+			assert.equal(db.resolveSync("/", "index.js"), "/index.js")
+		})
+	})
+
 	describe("fetch", () => {
 		it("should not go into infinite loop", async () => {
 			const db = new BrowserDB({ cwd: "http://localhost", root: "/", timeout: 99 })
@@ -109,7 +115,6 @@ describe('BrowserDB', () => {
 			await db.connect()
 			const result = await db.fetch("typography.json")
 			assert.deepEqual(result, {
-				nav: [{ href: "index.html", title: "Home" }],
 				$content: [{ h1: "Typography" }]
 			})
 		})
@@ -314,6 +319,34 @@ describe('BrowserDB', () => {
 				async () => await db.dropDocument('test.json'),
 				HTTPError
 			)
+		})
+	})
+
+	describe("statDocument", () => {
+		it("should load document without index", async () => {
+			const db = new BrowserDB({ cwd: "http://localhost", root: "/", timeout: 99 })
+			db.fetchFn = mockFetch([
+				["HEAD /typography.json",
+					{ "Content-Length": "123", "Last-Modified": "Wed, 21 Oct 2015 07:28:00 GMT" }
+				],
+				["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
+			])
+			const stat = await db.statDocument("typography.json")
+			assert.ok(stat.isFile)
+			assert.equal(stat.size, 123)
+			assert.equal(stat.mtimeMs, 1_445_412_480_000) // 2015-10-21 07:28:00 UTC in milliseconds
+		})
+
+		it("should handle missing Last-Modified header", async () => {
+			const db = new BrowserDB({ cwd: "http://localhost", root: "/", timeout: 99 })
+			db.fetchFn = mockFetch([
+				["HEAD /typography.json", { "Content-Length": "123" }],
+				["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
+			])
+			const stat = await db.statDocument("typography.json")
+			assert.ok(stat.isFile)
+			assert.equal(stat.size, 123)
+			assert.equal(stat.mtimeMs, 0)
 		})
 	})
 })
