@@ -13,8 +13,10 @@ export default BrowserDB;
  * - Every known vulnerability must be included in test;
  */
 declare class BrowserDB extends DB {
+    /** @type {Function | null} */
+    static "__#4@#FetchFn": Function | null;
     /** @type {Function} */
-    static FetchFn: Function;
+    static get FetchFn(): Function;
     /**
      * @param {object} [input]
      * @param {string} [input.host] - window.location.origin
@@ -35,19 +37,19 @@ declare class BrowserDB extends DB {
         console?: Console | undefined;
     } | undefined);
     /** @type {string} */
+    host: string;
     /** @type {number} */
     timeout: number;
     /** @type {Function} */
     fetchFn: Function;
-    console: Console;
-    get host(): string;
+    resolveSync(...args: any[]): any;
     /**
      * Fetches a document with authentication headers if available
      * @param {string} uri - The URI to fetch
      * @param {object} [requestInit={}] - Fetch request initialization options
      * @returns {Promise<Response>} Fetch response
      */
-    fetchRemote(uri: string, requestInit?: object): Promise<Response>;
+    fetchRemote(uri: string, requestInit?: object, visited?: Set<any>): Promise<Response>;
     /**
      * Load indexes from local or global index file
      * @returns {Promise<Record<string, any>>}

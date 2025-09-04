@@ -8,7 +8,17 @@
 	"scripts": {
 		"build": "tsc",
 		"test": "node --test",
-		"test:coverage": "node --test --experimental-test-coverage src/"
+		"test:coverage": "node --test --experimental-test-coverage src/",
+		"clean": "rm -rf .cache/ && rm -rf dist/",
+		"clean:modules": "rm -rf node_modules",
+		"test:docs": "node --test src/README.md.js",
+		"test:release": "node --test \"releases/**/*.test.js\"",
+		"test:coverage:collect": "nan0test coverage",
+		"test:status": "nan0test status",
+		"precommit": "npm test",
+		"prepush": "npm test",
+		"prepare": "husky",
+		"playground": "node playground/main.js"
 	},
 	"keywords": [
 		"nan0",
@@ -26,7 +36,8 @@
 		"@nan0web/db": "workspace:*",
 		"@nan0web/http": "workspace:*",
 		"@nan0web/types": "workspace:*",
-		"@nan0web/test": "workspace:*"
+		"@nan0web/test": "workspace:*",
+		"husky": "^9.1.7"
 	},
 	"peerDependencies": {
 		"@nan0web/auth-core": "^1.0.0",

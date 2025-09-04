@@ -19,13 +19,24 @@ class BrowserDB extends DB {
 	static Directory = BrowserDirectory
 	static FetchOptions = DB.FetchOptions
 
+	/** @type {Function | null} */
+	static #FetchFn = null
+
 	/** @type {Function} */
-	static FetchFn = typeof window !== 'undefined'
-		? window.fetch.bind(window)
-		: async () => { throw new Error('Fetch not available in this environment') }
+	static get FetchFn() {
+		if (this.#FetchFn) return this.#FetchFn
+		if (typeof window !== 'undefined' && window.fetch) {
+			this.#FetchFn = window.fetch.bind(window)
+		} else {
+			this.#FetchFn = async () => {
+				throw new Error('Fetch not available in this environment')
+			}
+		}
+		return this.#FetchFn
+	}
 
 	/** @type {string} */
-	// me = ''
+	host = ''
 	/** @type {number} */
 	timeout = 6_000
 	/** @type {Function} */
@@ -46,32 +57,28 @@ class BrowserDB extends DB {
 			/**
 			 * @note window.location.origin returns null in happy-dom.
 			 */
-			host = "undefined" === typeof window || "null" === window.location.origin
-				? "http://localhost" : window.location.origin,
-			// me = "",
+			host = "",
 			timeout = 6_000,
 			fetchFn = BrowserDB.FetchFn,
 			root = "/",
-			console: initialConsole = console,
 		} = input
 		super({ ...input, root })
 		if (host) {
 			this.cwd = host
 		}
-		// this.me = String(me)
+		this.host = String(host)
 		this.timeout = Number(timeout)
 		this.fetchFn = fetchFn
-		this.console = initialConsole
-	}
-
-	get host() {
-		return this.cwd
 	}
 
 	async connect() {
 		await super.connect()
 		if ("undefined" === typeof window) {
-			console.error("Window.fetch must be a function")
+			this.console.error("Window.fetch must be a function")
+		}
+		else if (!this.host) {
+			// this.host = window.location.origin
+			// this.cwd = window.location.origin
 		}
 	}
 
@@ -86,12 +93,39 @@ class BrowserDB extends DB {
 		}
 	}
 
-	/**
-	 * @param {...string} args - URI components to resolve
-	 * @returns {Promise<string>} Resolved URI
-	 */
-	async resolve(...args) {
-		return args.join("/").split("://").map(s => s.replace(/\/{2,}/g, "/")).join("://")
+	resolveSync(...args) {
+		if (args.length === 0) {
+			return this.cwd + this.root
+		}
+
+		const urls = args.map(arg => new URL(arg, this.cwd + this.root))
+		const hosts = urls.map(url => url.origin)
+		const uniqueHosts = new Set(hosts)
+
+		if (uniqueHosts.size > 1) {
+			return args[args.length - 1]
+		}
+
+		const paths = urls.map((url, i) => {
+			return args[i].startsWith("..") ? `../${url.pathname.slice(1)}`
+				: args[i].startsWith("/") ? url.pathname : url.pathname.slice(1)
+		})
+
+		// Handle query parameters and fragments from the last URL
+		const lastUrl = urls[urls.length - 1]
+		const search = lastUrl.search ? lastUrl.search : ''
+		const hash = lastUrl.hash ? lastUrl.hash : ''
+
+		let segments = []
+		for (const p of paths) {
+			if (p.startsWith("/")) segments = []
+			segments.push(p)
+		}
+
+		const pathname = super.resolveSync(...paths)
+		let host = uniqueHosts.values().next().value || this.cwd
+		if (host === this.cwd) host = ""
+		return host + (pathname.startsWith("/") ? pathname : `/${pathname}`) + search + hash
 	}
 
 	/**
@@ -100,9 +134,10 @@ class BrowserDB extends DB {
 	 * @param {object} [requestInit={}] - Fetch request initialization options
 	 * @returns {Promise<Response>} Fetch response
 	 */
-	async fetchRemote(uri, requestInit = {}) {
+	async fetchRemote(uri, requestInit = {}, visited = new Set()) {
 		try {
-			const url = await this.resolve(this.cwd, this.root)
+			let url = await this.resolve(this.cwd, this.root)
+			if (!url.includes("//")) url = this.cwd + url
 			const href = new URL(uri, url).href
 
 			// Add timeout handling
@@ -120,15 +155,17 @@ class BrowserDB extends DB {
 				let check = false
 				const headers = new Map(response.headers ?? [])
 				if (headers.has("content-type")) {
-					const [,contentExt] = headers.get("content-type").split("/")
+					const [, contentExt] = headers.get("content-type").split("/")
 					if (this.Directory.DATA_EXTNAMES.every(e => !e.endsWith("/" + contentExt.slice(1)))) {
 						check = true
 					}
 				}
-				if (check && !this.extname(uri)) {
+				const notFound = 404 === response.status && !visited.has(href)
+				if ((check || notFound) && !this.extname(uri)) {
+					visited.add(href)
 					for (const ext of this.Directory.DATA_EXTNAMES) {
 						const href = uri + ext
-						response = await this.fetchRemote(href, requestInit)
+						response = await this.fetchRemote(href, requestInit, visited)
 						if (response.ok) {
 							break
 						}
@@ -188,10 +225,10 @@ class BrowserDB extends DB {
 		await this.ensureAccess(uri, 'r')
 		const response = await this.fetchRemote(uri)
 		if (!response.ok) {
-			console.warn(["Failed to load document", uri].join(": "))
+			this.console.warn(["Failed to load document", uri].join(": "))
 			return defaultValue
 		}
-		return response.json()
+		return await response.json()
 	}
 
 	/**
@@ -236,7 +273,7 @@ class BrowserDB extends DB {
 		} catch {
 			try {
 				result = await response.text()
-			} catch {}
+			} catch { }
 		}
 		return result
 	}

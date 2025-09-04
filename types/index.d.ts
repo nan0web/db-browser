@@ -1,4 +1,4 @@
 export default BrowserDB;
 import BrowserDB from './BrowserDB.js';
-import DataDB from './DataDB.js';
-export { BrowserDB, DataDB };
+import BrowserDirectory from "./Directory.js";
+export { BrowserDB, BrowserDirectory };
