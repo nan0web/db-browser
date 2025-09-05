@@ -113,9 +113,9 @@ class BrowserDB extends DB {
 
 		// Find the common prefix
 		let commonLength = 0
-		while (commonLength < fromSegments.length && 
-			   commonLength < toSegments.length && 
-			   fromSegments[commonLength] === toSegments[commonLength]) {
+		while (commonLength < fromSegments.length &&
+			commonLength < toSegments.length &&
+			fromSegments[commonLength] === toSegments[commonLength]) {
 			commonLength++
 		}
 
@@ -362,6 +362,24 @@ class BrowserDB extends DB {
 			await this.throwError(response, ["Failed to delete document", uri].join(": "))
 		}
 		return true
+	}
+
+	/**
+	 * Creates a new DB instance with a subset of the data and meta.
+	 * @param {string} uri The URI to extract from the current DB.
+	 * @returns {BrowserDB}
+	 */
+	extract(uri) {
+		return BrowserDB.from(super.extract(uri))
+	}
+
+	/**
+	 * @param {any} input
+	 * @returns {BrowserDB}
+	 */
+	static from(input) {
+		if (input instanceof BrowserDB) return input
+		return new BrowserDB(input)
 	}
 }
 

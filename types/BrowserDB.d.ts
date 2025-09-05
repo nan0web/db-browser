@@ -18,6 +18,11 @@ declare class BrowserDB extends DB {
     /** @type {Function} */
     static get FetchFn(): Function;
     /**
+     * @param {any} input
+     * @returns {BrowserDB}
+     */
+    static from(input: any): BrowserDB;
+    /**
      * @param {object} [input]
      * @param {string} [input.host] - window.location.origin
      * @param {string} [input.indexFile='index.json']
@@ -69,5 +74,11 @@ declare class BrowserDB extends DB {
      * @returns {Promise<any>}
      */
     override writeDocument(uri: string, document: any): Promise<any>;
+    /**
+     * Creates a new DB instance with a subset of the data and meta.
+     * @param {string} uri The URI to extract from the current DB.
+     * @returns {BrowserDB}
+     */
+    extract(uri: string): BrowserDB;
 }
 import DB from "@nan0web/db";
