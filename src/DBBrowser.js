@@ -1,13 +1,15 @@
-import DB, { DocumentStat } from "@nan0web/db"
+import DB, { DocumentStat, DocumentEntry } from "@nan0web/db"
 import { HTTPError } from "@nan0web/http"
 import BrowserDirectory from "./Directory.js"
+import { NoConsole } from "@nan0web/log"
+import resolveSync from "./utils/resolveSync.js"
 
 /**
  * @goal
  * # Browser Database
  * Every source of data can be a part of your database.
  *
- * BrowserDB extends DB for browser usage for loading, saving, writing, and deleting
+ * DBBrowser extends DB for browser usage for loading, saving, writing, and deleting
  * documents, so a standard GET, POST, PUT, DELETE operations.
  *
  * ## Requirements
@@ -15,7 +17,7 @@ import BrowserDirectory from "./Directory.js"
  * - Every public function must be tested;
  * - Every known vulnerability must be included in test;
  */
-class BrowserDB extends DB {
+class DBBrowser extends DB {
 	static Directory = BrowserDirectory
 	static FetchOptions = DB.FetchOptions
 
@@ -39,29 +41,31 @@ class BrowserDB extends DB {
 	host = ''
 	/** @type {number} */
 	timeout = 6_000
-	/** @type {Function} */
-	fetchFn = BrowserDB.FetchFn
+
+	/**
+	 * The fetch function used by this specific instance.
+	 * @type {Function}
+	 */
+	fetchFn = DBBrowser.FetchFn
 
 	/**
 	 * @param {object} [input]
 	 * @param {string} [input.host] - window.location.origin
 	 * @param {string} [input.indexFile='index.json']
 	 * @param {string} [input.localIndexFile='index.d.json']
-	 * @param {number} [input.timeout=6_000] - Request timeout in milliseconds
-	 * @param {Function} [input.fetchFn] - Custom fetch function
+	 * @param {number} [input.timeout=6_000] - Request timeout in milliseconds (default: 6000 ms)
+	 * @param {Function} [input.fetchFn=DBBrowser.FetchFn] - Custom fetch function
 	 * @param {string} [input.root] - Base href (root) for the current DB
-	 * @param {Console} [input.console] - The console for messages
+	 * @param {Console | NoConsole} [input.console] - The console for messages
 	 */
 	constructor(input = {}) {
 		const {
-			/**
-			 * @note window.location.origin returns null in happy-dom.
-			 */
 			host = "",
 			timeout = 6_000,
-			fetchFn = BrowserDB.FetchFn,
+			fetchFn = DBBrowser.FetchFn,
 			root = "/",
 		} = input
+
 		super({ ...input, root })
 		if (host) {
 			this.cwd = host
@@ -71,15 +75,13 @@ class BrowserDB extends DB {
 		this.fetchFn = fetchFn
 	}
 
-	async connect() {
-		await super.connect()
-		if ("undefined" === typeof window) {
-			this.console.error("Window.fetch must be a function")
-		}
-		else if (!this.host) {
-			// this.host = window.location.origin
-			// this.cwd = window.location.origin
-		}
+	/**
+	 * Resolves path segments to absolute URL synchronously
+	 * @param {...string} args - Path segments
+	 * @returns {string} Resolved absolute URL
+	 */
+	resolveSync(...args) {
+		return resolveSync({ cwd: this.cwd, root: this.root }, ...args)
 	}
 
 	/**
@@ -94,90 +96,6 @@ class BrowserDB extends DB {
 	}
 
 	/**
-	 * Compute the relative path from one URI to another
-	 * @param {string} from - The base URI
-	 * @param {string} to - The target URI
-	 * @returns {string} The relative path between the two URIs
-	 */
-	relative(from, to) {
-		const fromUrl = new URL(from, this.cwd + this.root)
-		const toUrl = new URL(to, this.cwd + this.root)
-
-		// If hosts are different, return the absolute URL
-		if (fromUrl.origin !== toUrl.origin) {
-			return to
-		}
-
-		const fromSegments = fromUrl.pathname.split('/').filter(segment => segment.length > 0)
-		const toSegments = toUrl.pathname.split('/').filter(segment => segment.length > 0)
-
-		// Find the common prefix
-		let commonLength = 0
-		while (commonLength < fromSegments.length &&
-			commonLength < toSegments.length &&
-			fromSegments[commonLength] === toSegments[commonLength]) {
-			commonLength++
-		}
-
-		// Calculate how many directories to go up from the "from" path
-		const upSegments = fromSegments.length - commonLength - 1
-		const remainingToSegments = toSegments.slice(commonLength)
-
-		// Build the relative path
-		const relativeSegments = []
-		for (let i = 0; i < upSegments; i++) {
-			relativeSegments.push('..')
-		}
-		relativeSegments.push(...remainingToSegments)
-
-		// If both paths refer to the same file, return '.'
-		if (relativeSegments.length === 0) {
-			return '.'
-		}
-
-		const relativePath = relativeSegments.join('/')
-		const search = toUrl.search
-		const hash = toUrl.hash
-
-		return relativePath + search + hash
-	}
-
-	resolveSync(...args) {
-		if (args.length === 0) {
-			return this.cwd + this.root
-		}
-
-		const urls = args.map(arg => new URL(arg, this.cwd + this.root))
-		const hosts = urls.map(url => url.origin)
-		const uniqueHosts = new Set(hosts)
-
-		if (uniqueHosts.size > 1) {
-			return args[args.length - 1]
-		}
-
-		const paths = urls.map((url, i) => {
-			return args[i].startsWith("..") ? `../${url.pathname.slice(1)}`
-				: args[i].startsWith("/") ? url.pathname : url.pathname.slice(1)
-		})
-
-		// Handle query parameters and fragments from the last URL
-		const lastUrl = urls[urls.length - 1]
-		const search = lastUrl.search ? lastUrl.search : ''
-		const hash = lastUrl.hash ? lastUrl.hash : ''
-
-		let segments = []
-		for (const p of paths) {
-			if (p.startsWith("/")) segments = []
-			segments.push(p)
-		}
-
-		const pathname = super.resolveSync(...paths)
-		let host = uniqueHosts.values().next().value || this.cwd
-		if (host === this.cwd) host = ""
-		return host + (pathname.startsWith("/") ? pathname : `/${pathname}`) + search + hash
-	}
-
-	/**
 	 * Fetches a document with authentication headers if available
 	 * @param {string} uri - The URI to fetch
 	 * @param {object} [requestInit={}] - Fetch request initialization options
@@ -185,10 +103,8 @@ class BrowserDB extends DB {
 	 */
 	async fetchRemote(uri, requestInit = {}, visited = new Set()) {
 		try {
-			let url = await this.resolve(this.cwd, this.root)
-			if (!url.includes("//")) url = this.cwd + url
-			if (!url.endsWith("/")) url += "/"
-			const href = new URL(uri, url).href
+			const absUri = await this.resolve(uri)
+			const href = this.isRemote(absUri) ? absUri : new URL(absUri, this.cwd).href
 
 			// Add timeout handling
 			const controller = new AbortController()
@@ -214,8 +130,8 @@ class BrowserDB extends DB {
 				if ((check || notFound) && !this.extname(uri)) {
 					visited.add(href)
 					for (const ext of this.Directory.DATA_EXTNAMES) {
-						const href = uri + ext
-						response = await this.fetchRemote(href, requestInit, visited)
+						const extendedUri = uri + ext
+						response = await this.fetchRemote(extendedUri, requestInit, visited)
 						if (response.ok) {
 							break
 						}
@@ -242,7 +158,7 @@ class BrowserDB extends DB {
 	async load() {
 		try {
 			const localIndex = await this.fetchRemote(this.Directory.INDEX)
-			return localIndex || {}
+			return await localIndex.json() || {}
 		} catch (e) {
 			return {}
 		}
@@ -295,7 +211,8 @@ class BrowserDB extends DB {
 	 */
 	async loadDocument(uri, defaultValue) {
 		await this.ensureAccess(uri, 'r')
-		const response = await this.fetchRemote(uri)
+		const absUri = await this.resolve(uri)
+		const response = await this.fetchRemote(absUri)
 		if (!response.ok) {
 			this.console.warn(["Failed to load document", uri].join(": "))
 			return defaultValue
@@ -311,7 +228,8 @@ class BrowserDB extends DB {
 	 */
 	async saveDocument(uri, document) {
 		await this.ensureAccess(uri, 'w')
-		const response = await this.fetchFn(uri, {
+		const absUri = this.absolute(uri)
+		const response = await this.fetchFn(absUri, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(document)
@@ -319,7 +237,7 @@ class BrowserDB extends DB {
 		if (!response.ok) {
 			await this.throwError(response, ["Failed to save document", uri].join(": "))
 		}
-		return response.json()
+		return await response.json()
 	}
 
 	/**
@@ -330,7 +248,8 @@ class BrowserDB extends DB {
 	 */
 	async writeDocument(uri, document) {
 		await this.ensureAccess(uri, 'w')
-		const response = await this.fetchRemote(uri, {
+		const absUri = await this.resolve(uri)
+		const response = await this.fetchRemote(absUri, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(document)
@@ -357,7 +276,8 @@ class BrowserDB extends DB {
 	 */
 	async dropDocument(uri) {
 		await this.ensureAccess(uri, 'd')
-		const response = await this.fetchRemote(uri, { method: 'DELETE' })
+		const absUri = await this.resolve(uri)
+		const response = await this.fetchRemote(absUri, { method: 'DELETE' })
 		if (!response.ok) {
 			await this.throwError(response, ["Failed to delete document", uri].join(": "))
 		}
@@ -367,20 +287,72 @@ class BrowserDB extends DB {
 	/**
 	 * Creates a new DB instance with a subset of the data and meta.
 	 * @param {string} uri The URI to extract from the current DB.
-	 * @returns {BrowserDB}
+	 * @returns {DBBrowser}
 	 */
 	extract(uri) {
-		return BrowserDB.from(super.extract(uri))
+		const extracted = super.extract(uri)
+		return DBBrowser.from({
+			...extracted,
+			host: this.host,
+			timeout: this.timeout,
+			fetchFn: this.fetchFn,
+		})
+	}
+
+	/**
+	 * @override
+	 * @param {string} uri
+	 * @param {object} options
+	 * @yields {DocumentEntry}
+	 * @returns {AsyncGenerator<DocumentEntry, void, unknown>}
+	 */
+	async *readDir(uri, options = {}) {
+		const dirUri = await this.resolve(uri)
+
+		// Load index files from the directory first
+		const indexUri = this.resolveSync(dirUri, this.Index.INDEX)
+		const fullIndexUri = this.resolveSync(dirUri, this.Index.FULL_INDEX)
+
+		try {
+			// Try to load JSONL index (full recursive structure)
+			const response = await this.fetchRemote(fullIndexUri)
+			if (response.ok) {
+				const entries = await response.json()
+				for (const entry of entries) {
+					yield entry
+				}
+				return
+			}
+		} catch (err) {
+			this.console.warn(["Failed to load full index", fullIndexUri].join(": "))
+		}
+
+		try {
+			// Try to load TXT index (immediate children only)
+			const response = await this.fetchRemote(indexUri)
+			if (response.ok) {
+				const entries = await response.json()
+				for (const entry of entries) {
+					yield entry
+				}
+				return
+			}
+		} catch (err) {
+			this.console.warn(["Failed to load index", indexUri].join(": "))
+		}
+
+		// Fallback to parent implementation
+		yield* super.readDir(uri, { depth: 1, ...options })
 	}
 
 	/**
 	 * @param {any} input
-	 * @returns {BrowserDB}
+	 * @returns {DBBrowser}
 	 */
 	static from(input) {
-		if (input instanceof BrowserDB) return input
-		return new BrowserDB(input)
+		if (input instanceof DBBrowser) return input
+		return new DBBrowser(input)
 	}
 }
 
-export default BrowserDB
+export default DBBrowser

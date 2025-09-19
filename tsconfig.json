@@ -12,11 +12,12 @@
 		"esModuleInterop": true,
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
-		"moduleResolution": "node",
+		"moduleResolution": "bundler",
 		"allowSyntheticDefaultImports": true,
 		"noImplicitAny": false,
 		"allowJs": true,
-		"checkJs": true
+		"checkJs": true,
+		"verbatimModuleSyntax": true
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "src/**/*.test.js"]

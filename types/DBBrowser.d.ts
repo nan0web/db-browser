@@ -1,10 +1,10 @@
-export default BrowserDB;
+export default DBBrowser;
 /**
  * @goal
  * # Browser Database
  * Every source of data can be a part of your database.
  *
- * BrowserDB extends DB for browser usage for loading, saving, writing, and deleting
+ * DBBrowser extends DB for browser usage for loading, saving, writing, and deleting
  * documents, so a standard GET, POST, PUT, DELETE operations.
  *
  * ## Requirements
@@ -12,25 +12,25 @@ export default BrowserDB;
  * - Every public function must be tested;
  * - Every known vulnerability must be included in test;
  */
-declare class BrowserDB extends DB {
+declare class DBBrowser extends DB {
     /** @type {Function | null} */
-    static "__#4@#FetchFn": Function | null;
+    static "__#3@#FetchFn": Function | null;
     /** @type {Function} */
     static get FetchFn(): Function;
     /**
      * @param {any} input
-     * @returns {BrowserDB}
+     * @returns {DBBrowser}
      */
-    static from(input: any): BrowserDB;
+    static from(input: any): DBBrowser;
     /**
      * @param {object} [input]
      * @param {string} [input.host] - window.location.origin
      * @param {string} [input.indexFile='index.json']
      * @param {string} [input.localIndexFile='index.d.json']
-     * @param {number} [input.timeout=6_000] - Request timeout in milliseconds
-     * @param {Function} [input.fetchFn] - Custom fetch function
+     * @param {number} [input.timeout=6_000] - Request timeout in milliseconds (default: 6000 ms)
+     * @param {Function} [input.fetchFn=DBBrowser.FetchFn] - Custom fetch function
      * @param {string} [input.root] - Base href (root) for the current DB
-     * @param {Console} [input.console] - The console for messages
+     * @param {Console | NoConsole} [input.console] - The console for messages
      */
     constructor(input?: {
         host?: string | undefined;
@@ -39,15 +39,17 @@ declare class BrowserDB extends DB {
         timeout?: number | undefined;
         fetchFn?: Function | undefined;
         root?: string | undefined;
-        console?: Console | undefined;
+        console?: Console | NoConsole | undefined;
     } | undefined);
     /** @type {string} */
     host: string;
     /** @type {number} */
     timeout: number;
-    /** @type {Function} */
+    /**
+     * The fetch function used by this specific instance.
+     * @type {Function}
+     */
     fetchFn: Function;
-    resolveSync(...args: any[]): any;
     /**
      * Fetches a document with authentication headers if available
      * @param {string} uri - The URI to fetch
@@ -77,8 +79,18 @@ declare class BrowserDB extends DB {
     /**
      * Creates a new DB instance with a subset of the data and meta.
      * @param {string} uri The URI to extract from the current DB.
-     * @returns {BrowserDB}
+     * @returns {DBBrowser}
      */
-    extract(uri: string): BrowserDB;
+    extract(uri: string): DBBrowser;
+    /**
+     * @override
+     * @param {string} uri
+     * @param {object} options
+     * @yields {DocumentEntry}
+     * @returns {AsyncGenerator<DocumentEntry, void, unknown>}
+     */
+    override readDir(uri: string, options?: object): AsyncGenerator<DocumentEntry, void, unknown>;
 }
 import DB from "@nan0web/db";
+import { DocumentEntry } from "@nan0web/db";
+import { NoConsole } from "@nan0web/log";
