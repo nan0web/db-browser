@@ -132,14 +132,8 @@ export class MockDBBrowser extends DBBrowser {
 		// Generate indexes with proper encoding format
 		const gen = DirectoryIndex.generateAllIndexes(this, ".")
 		for await (const [uri, index] of gen) {
-			// Determine appropriate encoding format
-			const isFullIndex = uri.endsWith(DirectoryIndex.FULL_INDEX)
-			const targetFormat = isFullIndex
-				? DirectoryIndex.ENTRIES_AS_ARRAY
-				: DirectoryIndex.ENTRIES_AS_TEXT
-
 			// Encode properly and save
-			const encodedIndex = index.encode({ target: targetFormat })
+			const encodedIndex = index.encode()
 			const abs = this.normalize(uri)
 			this.data.set(abs, encodedIndex)
 			this.meta.set(abs, new DocumentStat({
