@@ -1,8 +1,21 @@
 import DB, { DocumentStat, DocumentEntry } from "@nan0web/db"
 import { HTTPError } from "@nan0web/http"
-import BrowserDirectory from "./Directory.js"
 import { NoConsole } from "@nan0web/log"
+import BrowserDirectory from "./Directory.js"
 import resolveSync from "./utils/resolveSync.js"
+
+class Headers extends Map {
+	/**
+	 * @param {*} entries
+	 */
+	constructor(entries = []) {
+		if (!Array.isArray(entries)) {
+			entries = entries instanceof Map ? Array.from(entries.entries()) : Object.entries(entries)
+		}
+		const fixed = entries.map(([name, value]) => [name.toLowerCase(), value])
+		super(fixed)
+	}
+}
 
 /**
  * @goal
@@ -119,7 +132,7 @@ class DBBrowser extends DB {
 				})
 				clearTimeout(timeoutId)
 				let check = false
-				const headers = new Map(response.headers ?? [])
+				const headers = new Headers(response.headers ?? [])
 				if (headers.has("content-type")) {
 					const [, contentExt] = headers.get("content-type").split("/")
 					if (this.Directory.DATA_EXTNAMES.every(e => !e.endsWith("/" + contentExt.slice(1)))) {
@@ -192,14 +205,14 @@ class DBBrowser extends DB {
 		const response = await this.fetchRemote(uri, { method: 'HEAD' })
 		if (404 === response.status) return new DocumentStat()
 
-		const headers = new Map(response.headers ?? [])
-		const lastModified = headers.get("Last-Modified") || headers.get("Date")
-		const mtimeMs = lastModified ? new Date(lastModified).getTime() : 0
+		const headers = new Headers(response.headers)
+		const lastModified = headers.get("last-modified") || headers.get("date")
+		const mtimeMs = lastModified ? new Date(lastModified).getTime() : Date.now()
 
 		return new DocumentStat({
 			isFile: true,
 			mtimeMs,
-			size: Number(headers.get("Content-Length") || 0),
+			size: Number(headers.get("content-length") || 0),
 		})
 	}
 
