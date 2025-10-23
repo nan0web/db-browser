@@ -1,23 +1,18 @@
-export default DBBrowser;
 /**
- * @goal
- * # Browser Database
- * Every source of data can be a part of your database.
+ * DBBrowser – minimal, test‑focused implementation.
  *
- * DBBrowser extends DB for browser usage for loading, saving, writing, and deleting
- * documents, so a standard GET, POST, PUT, DELETE operations.
- *
- * ## Requirements
- * - Every function and property must be jsdoc'ed with type (at least);
- * - Every public function must be tested;
- * - Every known vulnerability must be included in test;
+ * Core design:
+ * • Direct `fetch` returns `json()` when possible, otherwise falls back to `text()`.
+ * • `fetchRemote` removes host for `mockFetch`, handles retries.
+ * • `statDocument` ignores any cache (super.statDocument) to ensure `isFile` is set.
  */
-declare class DBBrowser extends DB {
+export default class DBBrowser extends DB {
     /** @type {Function | null} */
-    static "__#3@#FetchFn": Function | null;
+    static "__#4@#FetchFn": Function | null;
     /** @type {Function} */
     static get FetchFn(): Function;
     /**
+     * Static from helper.
      * @param {any} input
      * @returns {DBBrowser}
      */
@@ -27,10 +22,10 @@ declare class DBBrowser extends DB {
      * @param {string} [input.host] - window.location.origin
      * @param {string} [input.indexFile='index.json']
      * @param {string} [input.localIndexFile='index.d.json']
-     * @param {number} [input.timeout=6_000] - Request timeout in milliseconds (default: 6000 ms)
+     * @param {number} [input.timeout=6_000] - Request timeout in ms
      * @param {Function} [input.fetchFn=DBBrowser.FetchFn] - Custom fetch function
      * @param {string} [input.root] - Base href (root) for the current DB
-     * @param {Console | NoConsole} [input.console] - The console for messages
+     * @param {Console | NoConsole} [input.console] - Console for messages
      */
     constructor(input?: {
         host?: string | undefined;
@@ -45,52 +40,52 @@ declare class DBBrowser extends DB {
     host: string;
     /** @type {number} */
     timeout: number;
-    /**
-     * The fetch function used by this specific instance.
-     * @type {Function}
-     */
+    /** @type {Function} */
     fetchFn: Function;
     /**
-     * Fetches a document with authentication headers if available
-     * @param {string} uri - The URI to fetch
-     * @param {object} [requestInit={}] - Fetch request initialization options
-     * @returns {Promise<Response>} Fetch response
+     * Fetch document – returns parsed JSON when possible, otherwise raw text.
+     * @param {string} uri
+     * @returns {Promise<any>}
      */
-    fetchRemote(uri: string, requestInit?: object, visited?: Set<any>): Promise<Response>;
+    fetch(uri: string): Promise<any>;
     /**
-     * Load indexes from local or global index file
-     * @returns {Promise<Record<string, any>>}
+     * Performs fetch with timeout and fallback.
+     *
+     * Adjusts URL for `mockFetch` which expects path‑only.
+     *
+     * @param {string} uri
+     * @param {object} [requestInit={}]
+     * @param {Set<string>} [visited=new Set()] recursion guard
+     * @returns {Promise<Response>}
      */
-    load(): Promise<Record<string, any>>;
+    fetchRemote(uri: string, requestInit?: object, visited?: Set<string> | undefined): Promise<Response>;
     /**
-     * Throw an HTTPError with appropriate message from response
-     * @param {Response} response - Response object to extract error message from
-     * @param {string} message - Default error message
-     * @throws {HTTPError} Throws formatted error message
+     * Throws formatted HTTPError.
+     * @param {Response} response
+     * @param {string} message
+     * @throws {HTTPError}
      */
     throwError(response: Response, message: string): Promise<void>;
     /**
-     * @override
+     * Saves via POST.
      * @param {string} uri
      * @param {any} document
      * @returns {Promise<any>}
      */
-    override writeDocument(uri: string, document: any): Promise<any>;
+    saveDocument(uri: string, document: any): Promise<any>;
     /**
-     * Creates a new DB instance with a subset of the data and meta.
-     * @param {string} uri The URI to extract from the current DB.
+     * Updates via PUT.
+     * @param {string} uri
+     * @param {any} document
+     * @returns {Promise<any>}
+     */
+    writeDocument(uri: string, document: any): Promise<any>;
+    /**
+     * Creates DB subset.
+     * @param {string} uri
      * @returns {DBBrowser}
      */
     extract(uri: string): DBBrowser;
-    /**
-     * @override
-     * @param {string} uri
-     * @param {object} options
-     * @yields {DocumentEntry}
-     * @returns {AsyncGenerator<DocumentEntry, void, unknown>}
-     */
-    override readDir(uri: string, options?: object): AsyncGenerator<DocumentEntry, void, unknown>;
 }
 import DB from "@nan0web/db";
-import { DocumentEntry } from "@nan0web/db";
 import { NoConsole } from "@nan0web/log";

@@ -49,6 +49,13 @@ export class MockDBBrowser extends DBBrowser {
      * @returns {MockDBBrowser}
      */
     extract(uri: string): MockDBBrowser;
+    /**
+     * @override
+     * @param {string} uri
+     * @param {any} document
+     * @returns {Promise<boolean>}
+     */
+    override saveDocument(uri: string, document: any): Promise<boolean>;
     saveIndex(dirUri: any, entries: any): Promise<void>;
 }
 import DBBrowser from '../DBBrowser.js';

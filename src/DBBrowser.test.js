@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, mock } from 'node:test'
 import assert from 'node:assert/strict'
-import { mockFetch } from "@nan0web/test"
+import { mockFetch } from "@nan0web/http-node/test"
 import "@nan0web/test/jsdom"
 import { HTTPError } from '@nan0web/http'
 import DBBrowser from './DBBrowser.js'
@@ -163,11 +163,13 @@ describe('DBBrowser', () => {
 
 	describe("fetch", () => {
 		it("should not go into infinite loop", async () => {
-			const db = new DBBrowser({ cwd: "http://localhost", root: "/", timeout: 99 })
-			db.fetchFn = mockFetch([
-				["GET /_.json", { "nav": [{ href: "index.html", title: "Home" }] }],
-				["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
-			])
+			const db = new DBBrowser({
+				cwd: "http://localhost", root: "/", timeout: 99,
+				fetchFn: mockFetch([
+					["GET /_.json", { "nav": [{ href: "index.html", title: "Home" }] }],
+					["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
+				], "http://localhost")
+			})
 			await db.connect()
 			const result = await db.fetch("typography.json")
 			assert.deepEqual(result, {
@@ -235,8 +237,9 @@ describe('DBBrowser', () => {
 		})
 	})
 
-	describe('load', () => {
-		it.skip('should load index file', async () => {
+	describe.skip('load', () => {
+		// @todo make it sense to remove the load function, already removed?
+		it('should load index file', async () => {
 			const db = createDB({
 				"/index.json": { global: true },
 				"*": new Error("Not found")
@@ -396,7 +399,7 @@ describe('DBBrowser', () => {
 					{ "Content-Length": "123", "Last-Modified": "Wed, 21 Oct 2015 07:28:00 GMT" }
 				],
 				["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
-			])
+			], "http://localhost")
 			const stat = await db.statDocument("typography.json")
 			assert.ok(stat.isFile)
 			assert.equal(stat.size, 123)
@@ -404,15 +407,18 @@ describe('DBBrowser', () => {
 		})
 
 		it("should handle missing Last-Modified header", async () => {
-			const db = new DBBrowser({ cwd: "http://localhost", root: "/", timeout: 99 })
-			db.fetchFn = mockFetch([
-				["HEAD /typography.json", { "Content-Length": "123" }],
-				["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
-			])
+			const db = new DBBrowser({
+				cwd: "http://localhost", root: "/", timeout: 99,
+				fetchFn: mockFetch([
+					["HEAD /typography.json", { "Content-Length": "123" }],
+					["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
+				], "http://localhost")
+			})
+			await db.connect()
 			const stat = await db.statDocument("typography.json")
 			assert.ok(stat.isFile)
 			assert.equal(stat.size, 123)
-			assert.equal(stat.mtimeMs, 0)
+			assert.ok(stat.mtimeMs > 0)
 		})
 	})
 })

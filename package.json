@@ -7,7 +7,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsc",
-		"test": "node --test \"src/**/*.test.js\"",
+		"test": "node --test --test-timeout=3333 \"src/**/*.test.js\" | nan0test parse --fail",
 		"test:coverage": "node --test --experimental-test-coverage src/",
 		"clean": "rm -rf .cache/ && rm -rf dist/",
 		"clean:modules": "rm -rf node_modules",
@@ -18,7 +18,8 @@
 		"precommit": "npm test",
 		"prepush": "npm test",
 		"prepare": "husky",
-		"playground": "node playground/main.js"
+		"release": "nan0release publish",
+		"play": "node play/main.js"
 	},
 	"keywords": [
 		"nan0",
@@ -28,21 +29,20 @@
 		"http",
 		"json"
 	],
-	"author": "ЯRаСлав YaRaSLove <support@yaro.page>",
+	"author": "ЯRаСлав (YaRaSLove) <support@yaro.page>",
 	"license": "ISC",
 	"packageManager": "pnpm@10.11.0",
 	"devDependencies": {
-		"@nan0web/auth-core": "workspace:*",
 		"@nan0web/db": "workspace:*",
-		"@nan0web/http": "workspace:*",
-		"@nan0web/types": "workspace:*",
+		"@nan0web/http": "^1.0.1",
+		"@nan0web/http-node": "workspace:*",
+		"@nan0web/release": "^1.0.1",
 		"@nan0web/test": "workspace:*",
+		"@nan0web/ui-cli": "^1.0.0",
 		"husky": "^9.1.7"
 	},
 	"peerDependencies": {
-		"@nan0web/auth-core": "^1.0.0",
 		"@nan0web/db": "^1.0.0",
-		"@nan0web/http": "^1.0.0",
-		"@nan0web/types": "^1.0.0"
+		"@nan0web/http": "^1.0.1"
 	}
 }

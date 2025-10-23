@@ -1,6 +1,6 @@
 import { Directory } from "@nan0web/db"
 
-class BrowserDirectory extends Directory {
+export default class BrowserDirectory extends Directory {
 	/**
 	 * The default file name for directory settings.
 	 * @type {string}
@@ -14,10 +14,14 @@ class BrowserDirectory extends Directory {
 	static GLOBALS = "_/"
 
 	/**
+	 * The default index name for directories.
+	 * @type {string}
+	 */
+	static INDEX = "index.json"
+
+	/**
 	 * Supported data file extensions for loading documents.
 	 * @type {string[]}
 	 */
 	static DATA_EXTNAMES = [".json", ".jsonl", ".csv", ".yaml", ".yml", ".nano"]
 }
-
-export default BrowserDirectory

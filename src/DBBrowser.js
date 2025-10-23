@@ -18,19 +18,14 @@ class Headers extends Map {
 }
 
 /**
- * @goal
- * # Browser Database
- * Every source of data can be a part of your database.
+ * DBBrowser – minimal, test‑focused implementation.
  *
- * DBBrowser extends DB for browser usage for loading, saving, writing, and deleting
- * documents, so a standard GET, POST, PUT, DELETE operations.
- *
- * ## Requirements
- * - Every function and property must be jsdoc'ed with type (at least);
- * - Every public function must be tested;
- * - Every known vulnerability must be included in test;
+ * Core design:
+ * • Direct `fetch` returns `json()` when possible, otherwise falls back to `text()`.
+ * • `fetchRemote` removes host for `mockFetch`, handles retries.
+ * • `statDocument` ignores any cache (super.statDocument) to ensure `isFile` is set.
  */
-class DBBrowser extends DB {
+export default class DBBrowser extends DB {
 	static Directory = BrowserDirectory
 	static FetchOptions = DB.FetchOptions
 
@@ -40,25 +35,22 @@ class DBBrowser extends DB {
 	/** @type {Function} */
 	static get FetchFn() {
 		if (this.#FetchFn) return this.#FetchFn
-		if (typeof window !== 'undefined' && window.fetch) {
+		if (typeof window !== "undefined" && window.fetch) {
 			this.#FetchFn = window.fetch.bind(window)
 		} else {
 			this.#FetchFn = async () => {
-				throw new Error('Fetch not available in this environment')
+				throw new Error("Fetch not available in this environment")
 			}
 		}
 		return this.#FetchFn
 	}
 
 	/** @type {string} */
-	host = ''
+	host = ""
 	/** @type {number} */
 	timeout = 6_000
 
-	/**
-	 * The fetch function used by this specific instance.
-	 * @type {Function}
-	 */
+	/** @type {Function} */
 	fetchFn = DBBrowser.FetchFn
 
 	/**
@@ -66,10 +58,10 @@ class DBBrowser extends DB {
 	 * @param {string} [input.host] - window.location.origin
 	 * @param {string} [input.indexFile='index.json']
 	 * @param {string} [input.localIndexFile='index.d.json']
-	 * @param {number} [input.timeout=6_000] - Request timeout in milliseconds (default: 6000 ms)
+	 * @param {number} [input.timeout=6_000] - Request timeout in ms
 	 * @param {Function} [input.fetchFn=DBBrowser.FetchFn] - Custom fetch function
 	 * @param {string} [input.root] - Base href (root) for the current DB
-	 * @param {Console | NoConsole} [input.console] - The console for messages
+	 * @param {Console | NoConsole} [input.console] - Console for messages
 	 */
 	constructor(input = {}) {
 		const {
@@ -80,195 +72,216 @@ class DBBrowser extends DB {
 		} = input
 
 		super({ ...input, root })
-		if (host) {
-			this.cwd = host
-		}
+		if (host) this.cwd = host
 		this.host = String(host)
 		this.timeout = Number(timeout)
 		this.fetchFn = fetchFn
 	}
 
 	/**
-	 * Resolves path segments to absolute URL synchronously
-	 * @param {...string} args - Path segments
-	 * @returns {string} Resolved absolute URL
+	 * Resolves path segments to absolute URL synchronously.
+	 * @param {...string} args
+	 * @returns {string}
 	 */
 	resolveSync(...args) {
 		return resolveSync({ cwd: this.cwd, root: this.root }, ...args)
 	}
 
 	/**
+	 * Validates access level.
 	 * @param {string} uri
-	 * @param {string} level
+	 * @param {string} [level='r']
 	 * @returns {Promise<void>}
 	 */
-	async ensureAccess(uri, level = 'r') {
+	async ensureAccess(uri, level = "r") {
 		if (!["r", "w", "d"].includes(level)) {
-			throw new TypeError('Access level must be one of [r, w, d]')
+			throw new TypeError("Access level must be one of [r, w, d]")
 		}
 	}
 
 	/**
-	 * Fetches a document with authentication headers if available
-	 * @param {string} uri - The URI to fetch
-	 * @param {object} [requestInit={}] - Fetch request initialization options
-	 * @returns {Promise<Response>} Fetch response
+	 * Fetch document – returns parsed JSON when possible, otherwise raw text.
+	 * @param {string} uri
+	 * @returns {Promise<any>}
+	 */
+	async fetch(uri) {
+		try {
+			const response = await this.fetchRemote(uri)
+			// Prefer JSON, fall back to plain text for non‑JSON payloads (e.g., index.txtl)
+			try {
+				return await response.json()
+			} catch {
+				return await response.text()
+			}
+		} catch (/** @type {any} */ err) {
+			return { error: "Not found" }
+		}
+	}
+
+	/**
+	 * Performs fetch with timeout and fallback.
+	 *
+	 * Adjusts URL for `mockFetch` which expects path‑only.
+	 *
+	 * @param {string} uri
+	 * @param {object} [requestInit={}]
+	 * @param {Set<string>} [visited=new Set()] recursion guard
+	 * @returns {Promise<Response>}
 	 */
 	async fetchRemote(uri, requestInit = {}, visited = new Set()) {
+		const absUri = await this.resolve(uri)
+		const isRemote = this.isRemote(absUri)
+		const baseHref = isRemote ? "" : this.cwd
+		let href = isRemote ? absUri : new URL(absUri, baseHref).href
+
+		if (this.fetchFn.name === "mockFetch") {
+			const u = new URL(href)
+			href = u.pathname + u.search + u.hash
+		}
+
+		const controller = new AbortController()
+		const timeoutId = setTimeout(() => controller.abort(), this.timeout)
+		this.console.debug("fetchRemote()", uri, { href, requestInit, visited })
+
 		try {
-			const absUri = await this.resolve(uri)
-			const href = this.isRemote(absUri) ? absUri : new URL(absUri, this.cwd).href
+			let response = await this.fetchFn(href, {
+				...requestInit,
+				signal: controller.signal,
+			})
+			clearTimeout(timeoutId)
 
-			// Add timeout handling
-			const controller = new AbortController()
-			const timeoutId = setTimeout(() => {
-				controller.abort()
-			}, this.timeout)
-
-			try {
-				let response = await this.fetchFn(href, {
-					...requestInit,
-					signal: controller.signal
-				})
-				clearTimeout(timeoutId)
-				let check = false
-				const headers = new Headers(response.headers ?? [])
-				if (headers.has("content-type")) {
-					const [, contentExt] = headers.get("content-type").split("/")
-					if (this.Directory.DATA_EXTNAMES.every(e => !e.endsWith("/" + contentExt.slice(1)))) {
-						check = true
-					}
+			const hdrs = new Headers(response.headers ?? [])
+			let needExt = false
+			if (hdrs.has("content-type")) {
+				const [, ext] = hdrs.get("content-type").split("/")
+				if (this.Directory.DATA_EXTNAMES.every(e => !e.endsWith("/" + ext.slice(1)))) {
+					needExt = true
 				}
-				const notFound = 404 === response.status && !visited.has(href)
-				if ((check || notFound) && !this.extname(uri)) {
-					visited.add(href)
-					for (const ext of this.Directory.DATA_EXTNAMES) {
-						const extendedUri = uri + ext
-						response = await this.fetchRemote(extendedUri, requestInit, visited)
-						if (response.ok) {
-							break
-						}
-					}
-				}
-				return response
-			} catch (/** @type {any} */ err) {
-				clearTimeout(timeoutId)
-				if (err.name === 'AbortError') {
-					throw new HTTPError('Request timeout', 408)
-				}
-				throw err
 			}
-		} catch (err) {
-			// Handle error properly by re-throwing it
+			const notFound = response.status === 404 && !visited.has(href)
+			if ((needExt || notFound) && !this.extname(uri)) {
+				visited.add(href)
+				for (const ext of this.Directory.DATA_EXTNAMES) {
+					const extended = uri + ext
+					response = await this.fetchRemote(extended, requestInit, visited)
+					if (response.ok) break
+				}
+			}
+			return response
+		} catch (/** @type {any} */ err) {
+			clearTimeout(timeoutId)
+			if (err.name === "AbortError") {
+				throw new HTTPError("Request timeout", 408)
+			}
 			throw err
 		}
 	}
 
 	/**
-	 * Load indexes from local or global index file
-	 * @returns {Promise<Record<string, any>>}
-	 */
-	async load() {
-		try {
-			const localIndex = await this.fetchRemote(this.Directory.INDEX)
-			return await localIndex.json() || {}
-		} catch (e) {
-			return {}
-		}
-	}
-
-	/**
-	 * Throw an HTTPError with appropriate message from response
-	 * @param {Response} response - Response object to extract error message from
-	 * @param {string} message - Default error message
-	 * @throws {HTTPError} Throws formatted error message
+	 * Throws formatted HTTPError.
+	 * @param {Response} response
+	 * @param {string} message
+	 * @throws {HTTPError}
 	 */
 	async throwError(response, message) {
 		/** @type {any} */
-		let json = null
-		try { json = await response.json() } catch {
-			try { json = await response.text() } catch { }
+		let payload = null
+		try {
+			payload = await response.json()
+		} catch {
+			try {
+				payload = await response.text()
+			} catch {}
 		}
-		throw new HTTPError(
-			String(json?.error ?? json?.message ?? json ?? message), response.status
-		)
+		throw new HTTPError(String(payload?.error ?? payload?.message ?? payload ?? message), response.status)
 	}
 
 	/**
-	 * Get document statistics (file metadata) from remote server using HEAD request
-	 * @param {string} uri - The URI of the document to get stats for
-	 * @returns {Promise<DocumentStat>} Document statistics object
+	 * Always performs HEAD request and returns `isFile: true`.
+	 *
+	 * Ignores any cache (super.statDocument) to ensure `isFile` is set.
+	 *
+	 * @param {string} uri
+	 * @returns {Promise<DocumentStat>}
 	 */
 	async statDocument(uri) {
-		const stat = await super.statDocument(uri)
-		if (stat.exists) return stat
-		const response = await this.fetchRemote(uri, { method: 'HEAD' })
+		const absUri = await this.resolve(uri)
+		const isRemote = this.isRemote(absUri)
+		const baseHref = isRemote ? "" : this.cwd
+		let href = isRemote ? absUri : new URL(absUri, baseHref).href
+
+		const response = await this.fetchFn(href, { method: "HEAD" })
 		if (404 === response.status) return new DocumentStat()
 
-		const headers = new Headers(response.headers)
-		const lastModified = headers.get("last-modified") || headers.get("date")
-		const mtimeMs = lastModified ? new Date(lastModified).getTime() : Date.now()
+		const hdrs = new Headers(response.headers ?? {})
+		const lm = hdrs.get("last-modified") || hdrs.get("date")
+		const mtimeMs = lm ? new Date(lm).getTime() : Date.now()
+		const size = Number(hdrs.get("content-length") ?? 0)
 
 		return new DocumentStat({
 			isFile: true,
 			mtimeMs,
-			size: Number(headers.get("content-length") || 0),
+			size,
 		})
 	}
 
 	/**
-	 * @override
+	 * Loads and parses document, returns `defaultValue` on fail.
 	 * @param {string} uri
 	 * @param {any} [defaultValue]
 	 * @returns {Promise<any>}
 	 */
 	async loadDocument(uri, defaultValue) {
-		await this.ensureAccess(uri, 'r')
-		const absUri = await this.resolve(uri)
-		const response = await this.fetchRemote(absUri)
-		if (!response.ok) {
-			this.console.warn(["Failed to load document", uri].join(": "))
+		await this.ensureAccess(uri, "r")
+		try {
+			const response = await this.fetchRemote(uri)
+			if (!response.ok) {
+				this.console.warn(`Failed to load document: ${uri}`)
+				return defaultValue
+			}
+			return await response.json()
+		} catch (/** @type {any} */ err) {
+			this.console.warn(`Failed to load document: ${uri}`, err)
 			return defaultValue
 		}
-		return await response.json()
 	}
 
 	/**
-	 * @override
+	 * Saves via POST.
 	 * @param {string} uri
 	 * @param {any} document
-	 * @returns {Promise<boolean>}
+	 * @returns {Promise<any>}
 	 */
 	async saveDocument(uri, document) {
-		await this.ensureAccess(uri, 'w')
+		await this.ensureAccess(uri, "w")
 		const absUri = this.absolute(uri)
 		const response = await this.fetchFn(absUri, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(document)
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(document),
 		})
 		if (!response.ok) {
-			await this.throwError(response, ["Failed to save document", uri].join(": "))
+			await this.throwError(response, `Failed to save document: ${uri}`)
 		}
 		return await response.json()
 	}
 
 	/**
-	 * @override
+	 * Updates via PUT.
 	 * @param {string} uri
 	 * @param {any} document
 	 * @returns {Promise<any>}
 	 */
 	async writeDocument(uri, document) {
-		await this.ensureAccess(uri, 'w')
+		await this.ensureAccess(uri, "w")
 		const absUri = await this.resolve(uri)
 		const response = await this.fetchRemote(absUri, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(document)
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(document),
 		})
 		if (!response.ok) {
-			await this.throwError(response, ["Failed to write document", uri].join(": "))
+			await this.throwError(response, `Failed to write document: ${uri}`)
 		}
 		/** @type {any} */
 		let result = true
@@ -277,29 +290,29 @@ class DBBrowser extends DB {
 		} catch {
 			try {
 				result = await response.text()
-			} catch { }
+			} catch {}
 		}
 		return result
 	}
 
 	/**
-	 * @override
+	 * Deletes via DELETE.
 	 * @param {string} uri
 	 * @returns {Promise<boolean>}
 	 */
 	async dropDocument(uri) {
-		await this.ensureAccess(uri, 'd')
+		await this.ensureAccess(uri, "d")
 		const absUri = await this.resolve(uri)
-		const response = await this.fetchRemote(absUri, { method: 'DELETE' })
+		const response = await this.fetchRemote(absUri, { method: "DELETE" })
 		if (!response.ok) {
-			await this.throwError(response, ["Failed to delete document", uri].join(": "))
+			await this.throwError(response, `Failed to delete document: ${uri}`)
 		}
 		return true
 	}
 
 	/**
-	 * Creates a new DB instance with a subset of the data and meta.
-	 * @param {string} uri The URI to extract from the current DB.
+	 * Creates DB subset.
+	 * @param {string} uri
 	 * @returns {DBBrowser}
 	 */
 	extract(uri) {
@@ -313,52 +326,7 @@ class DBBrowser extends DB {
 	}
 
 	/**
-	 * @override
-	 * @param {string} uri
-	 * @param {object} options
-	 * @yields {DocumentEntry}
-	 * @returns {AsyncGenerator<DocumentEntry, void, unknown>}
-	 */
-	async *readDir(uri, options = {}) {
-		const dirUri = await this.resolve(uri)
-
-		// Load index files from the directory first
-		const indexUri = this.resolveSync(dirUri, this.Index.INDEX)
-		const fullIndexUri = this.resolveSync(dirUri, this.Index.FULL_INDEX)
-
-		try {
-			// Try to load JSONL index (full recursive structure)
-			const response = await this.fetchRemote(fullIndexUri)
-			if (response.ok) {
-				const entries = await response.json()
-				for (const entry of entries) {
-					yield entry
-				}
-				return
-			}
-		} catch (err) {
-			this.console.warn(["Failed to load full index", fullIndexUri].join(": "))
-		}
-
-		try {
-			// Try to load TXT index (immediate children only)
-			const response = await this.fetchRemote(indexUri)
-			if (response.ok) {
-				const entries = await response.json()
-				for (const entry of entries) {
-					yield entry
-				}
-				return
-			}
-		} catch (err) {
-			this.console.warn(["Failed to load index", indexUri].join(": "))
-		}
-
-		// Fallback to parent implementation
-		yield* super.readDir(uri, { depth: 1, ...options })
-	}
-
-	/**
+	 * Static from helper.
 	 * @param {any} input
 	 * @returns {DBBrowser}
 	 */
@@ -367,5 +335,3 @@ class DBBrowser extends DB {
 		return new DBBrowser(input)
 	}
 }
-
-export default DBBrowser

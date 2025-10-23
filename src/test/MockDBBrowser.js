@@ -1,4 +1,4 @@
-import { mockFetch } from '@nan0web/test'
+import { mockFetch } from '@nan0web/http-node'
 import '@nan0web/test/jsdom' // provides DOM environment for fetch
 import DBBrowser from '../DBBrowser.js'
 import { DirectoryIndex, DocumentStat } from '@nan0web/db'
