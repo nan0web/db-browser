@@ -15,6 +15,7 @@
 		"test:release": "node --test \"releases/**/*.test.js\"",
 		"test:coverage:collect": "nan0test coverage",
 		"test:status": "nan0test status",
+		"test:all": "npm run test && npm run test:docs && npm run build",
 		"precommit": "npm test",
 		"prepush": "npm test",
 		"prepare": "husky",
@@ -33,16 +34,16 @@
 	"license": "ISC",
 	"packageManager": "pnpm@10.11.0",
 	"devDependencies": {
-		"@nan0web/db": "workspace:*",
+		"@nan0web/db": "^1.2.1",
 		"@nan0web/http": "^1.0.1",
-		"@nan0web/http-node": "workspace:*",
+		"@nan0web/http-node": "^1.0.1",
 		"@nan0web/release": "^1.0.1",
-		"@nan0web/test": "workspace:*",
-		"@nan0web/ui-cli": "^1.0.0",
+		"@nan0web/test": "^1.1.3",
+		"@nan0web/ui-cli": "^1.1.1",
 		"husky": "^9.1.7"
 	},
 	"peerDependencies": {
-		"@nan0web/db": "^1.0.0",
+		"@nan0web/db": "^1.0.2",
 		"@nan0web/http": "^1.0.1"
 	}
 }

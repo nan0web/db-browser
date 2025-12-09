@@ -4,7 +4,7 @@ Browser Database client as extension of @nan0web/db
 
 |Package name|[Status](https://github.com/nan0web/monorepo/blob/main/system.md#написання-сценаріїв)|Documentation|Test coverage|Features|Npm version|
 |---|---|---|---|---|---|
- |[@nan0web/db-browser](https://github.com/nan0web/db-browser/) |🟢 `95.5%` |🧪 [English 🏴󠁧󠁢󠁥󠁮󠁧󠁿](https://github.com/nan0web/db-browser/blob/main/README.md)<br />[Українською 🇺🇦](https://github.com/nan0web/db-browser/blob/main/docs/uk/README.md) |🟡 `74.2%` |✅ d.ts 📜 system.md 🕹️ playground |— |
+ |[@nan0web/db-browser](https://github.com/nan0web/db-browser/) |🟢 `97.5%` |🧪 [English 🏴󠁧󠁢󠁥󠁮󠁧󠁿](https://github.com/nan0web/db-browser/blob/main/README.md)<br />[Українською 🇺🇦](https://github.com/nan0web/db-browser/blob/main/docs/uk/README.md) |🟡 `85.7%` |✅ d.ts 📜 system.md 🕹️ playground |1.0.0 |
 
 ## Description
 
@@ -46,7 +46,6 @@ const db = new DBBrowser({
 	host: "https://api.example.com",
 	root: "/data/"
 })
-
 const users = await db.fetch("users.json")
 console.info(users)
 // [
@@ -66,7 +65,6 @@ const db = new DBBrowser({
 	host: "https://api.example.com",
 	root: "/data/"
 })
-
 const result = await db.saveDocument("new-file.json", { test: "value" })
 console.info("Save result:", result) // ← Save result: true
 ```
@@ -81,13 +79,11 @@ const db = new DBBrowser({
 	host: "https://api.example.com",
 	root: "/data/"
 })
-
 const data = [
 	{ id: 1, name: "Alice Cooper", email: "alice@example.com" },
 	{ id: 2, name: "Bob Marley", email: "bob@example.com" },
 	{ id: 3, name: "Charlie Brown", email: "charlie@example.com" }
 ]
-
 const result = await db.writeDocument("users.json", data)
 console.info("Write result:", result) // ← Write result: { written: true }
 ```
@@ -102,7 +98,6 @@ const db = new DBBrowser({
 	host: "https://api.example.com",
 	root: "/data/"
 })
-
 const result = await db.dropDocument("new-file.json")
 console.info("Drop result:", result) // ← Drop result: true
 ```
@@ -117,7 +112,6 @@ const db = new DBBrowser({
 	host: "https://api.example.com",
 	root: "/data/"
 })
-
 const entries = []
 for await (const entry of db.readDir(".")) {
 	entries.push(entry.name)
@@ -132,12 +126,10 @@ Supports glob-style searching within remote structures.
 How to search for documents?
 ```js
 import DBBrowser from "@nan0web/db-browser"
-
 const db = new DBBrowser({
 	host: "https://api.example.com",
 	root: "/data/"
 })
-
 const entries = []
 for await (const uri of db.find(uri => uri.endsWith(".json"))) {
 	entries.push(uri)
@@ -156,12 +148,11 @@ const db = new DBBrowser({
 	host: "https://api.example.com",
 	root: "/data/"
 })
-
 const subDB = db.extract("posts/")
+console.info("Subset cwd:", subDB.cwd) // ← Subset root: data/posts/
 console.info("Subset root:", subDB.root) // ← Subset root: data/posts/
 console.info("Subset instanceof DBBrowser:", subDB instanceof DBBrowser)
 // Subset instanceof DBBrowser: true
-
 ```
 ## API
 

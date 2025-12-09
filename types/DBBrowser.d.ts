@@ -8,7 +8,7 @@
  */
 export default class DBBrowser extends DB {
     /** @type {Function | null} */
-    static "__#4@#FetchFn": Function | null;
+    static "__#5@#FetchFn": Function | null;
     /** @type {Function} */
     static get FetchFn(): Function;
     /**
@@ -22,10 +22,10 @@ export default class DBBrowser extends DB {
      * @param {string} [input.host] - window.location.origin
      * @param {string} [input.indexFile='index.json']
      * @param {string} [input.localIndexFile='index.d.json']
-     * @param {number} [input.timeout=6_000] - Request timeout in ms
+     * @param {number} [input.timeout=6_000] - Request timeout in milliseconds
      * @param {Function} [input.fetchFn=DBBrowser.FetchFn] - Custom fetch function
      * @param {string} [input.root] - Base href (root) for the current DB
-     * @param {Console | NoConsole} [input.console] - Console for messages
+     * @param {Console | NoConsole} [input.console] - The console for messages
      */
     constructor(input?: {
         host?: string | undefined;
@@ -42,6 +42,13 @@ export default class DBBrowser extends DB {
     timeout: number;
     /** @type {Function} */
     fetchFn: Function;
+    /**
+     * Validates access level.
+     * @param {string} uri
+     * @param {string} [level='r']
+     * @returns {Promise<void>}
+     */
+    ensureAccess(uri: string, level?: string | undefined): Promise<void>;
     /**
      * Fetch document – returns parsed JSON when possible, otherwise raw text.
      * @param {string} uri
@@ -67,6 +74,22 @@ export default class DBBrowser extends DB {
      */
     throwError(response: Response, message: string): Promise<void>;
     /**
+     * Always performs HEAD request and returns `isFile: true`.
+     *
+     * Ignores any cache (super.statDocument) to ensure `isFile` is set.
+     *
+     * @param {string} uri
+     * @returns {Promise<DocumentStat>}
+     */
+    statDocument(uri: string): Promise<DocumentStat>;
+    /**
+     * Loads and parses document, returns `defaultValue` on fail.
+     * @param {string} uri
+     * @param {any} [defaultValue]
+     * @returns {Promise<any>}
+     */
+    loadDocument(uri: string, defaultValue?: any): Promise<any>;
+    /**
      * Saves via POST.
      * @param {string} uri
      * @param {any} document
@@ -81,11 +104,23 @@ export default class DBBrowser extends DB {
      */
     writeDocument(uri: string, document: any): Promise<any>;
     /**
+     * Deletes via DELETE.
+     * @param {string} uri
+     * @returns {Promise<boolean>}
+     */
+    dropDocument(uri: string): Promise<boolean>;
+    /**
      * Creates DB subset.
+     *
+     * The original DBBrowser stores `root` with a leading slash (e.g. "/data/").
+     * For the README‑based example we need a *relative* root without the leading slash,
+     * and `cwd` must stay as the original host URL.
+     *
      * @param {string} uri
      * @returns {DBBrowser}
      */
     extract(uri: string): DBBrowser;
 }
 import DB from "@nan0web/db";
+import { DocumentStat } from "@nan0web/db";
 import { NoConsole } from "@nan0web/log";

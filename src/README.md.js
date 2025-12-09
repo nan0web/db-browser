@@ -306,14 +306,17 @@ function testRender() {
 		})
 
 		const subDB = db.extract("posts/")
+		console.info("Subset cwd:", subDB.cwd) // ← Subset root: data/posts/
 		console.info("Subset root:", subDB.root) // ← Subset root: data/posts/
 		console.info("Subset instanceof DBBrowser:", subDB instanceof DBBrowser)
 		// Subset instanceof DBBrowser: true
 
-		assert.equal(console.output()[0][1], "Subset root:")
-		assert.equal(console.output()[0][2], "data/posts/")
-		assert.equal(console.output()[1][1], "Subset instanceof DBBrowser:")
-		assert.equal(console.output()[1][2], true)
+		assert.equal(console.output()[0][1], "Subset cwd:")
+		assert.equal(console.output()[0][2], "https://api.example.com")
+		assert.equal(console.output()[1][1], "Subset root:")
+		assert.equal(console.output()[1][2], "data/posts/")
+		assert.equal(console.output()[2][1], "Subset instanceof DBBrowser:")
+		assert.equal(console.output()[2][2], true)
 	})
 
 	/**

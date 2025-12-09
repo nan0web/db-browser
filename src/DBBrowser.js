@@ -58,10 +58,10 @@ export default class DBBrowser extends DB {
 	 * @param {string} [input.host] - window.location.origin
 	 * @param {string} [input.indexFile='index.json']
 	 * @param {string} [input.localIndexFile='index.d.json']
-	 * @param {number} [input.timeout=6_000] - Request timeout in ms
+	 * @param {number} [input.timeout=6_000] - Request timeout in milliseconds
 	 * @param {Function} [input.fetchFn=DBBrowser.FetchFn] - Custom fetch function
 	 * @param {string} [input.root] - Base href (root) for the current DB
-	 * @param {Console | NoConsole} [input.console] - Console for messages
+	 * @param {Console | NoConsole} [input.console] - The console for messages
 	 */
 	constructor(input = {}) {
 		const {
@@ -312,16 +312,33 @@ export default class DBBrowser extends DB {
 
 	/**
 	 * Creates DB subset.
+	 *
+	 * The original DBBrowser stores `root` with a leading slash (e.g. "/data/").
+	 * For the README‑based example we need a *relative* root without the leading slash,
+	 * and `cwd` must stay as the original host URL.
+	 *
 	 * @param {string} uri
 	 * @returns {DBBrowser}
 	 */
 	extract(uri) {
-		const extracted = super.extract(uri)
+		// Normalise original root (strip leading/trailing slashes)
+		const cleanRoot = this.root.replace(/^\/+|\/+$/g, "")
+		// Ensure uri does not start with a slash
+		const cleanUri = uri.replace(/^\/+/, "")
+		// Build new relative root:  "<originalRoot>/<uri>"
+		const newRoot = cleanRoot
+			? `${cleanRoot}/${cleanUri}`
+			: cleanUri
+
+		// Ensure trailing slash for directory semantics
+		const finalRoot = newRoot.endsWith("/") ? newRoot : `${newRoot}/`
+
 		return DBBrowser.from({
-			...extracted,
 			host: this.host,
+			root: finalRoot,
 			timeout: this.timeout,
 			fetchFn: this.fetchFn,
+			console: this.console,
 		})
 	}
 
