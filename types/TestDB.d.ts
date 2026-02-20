@@ -3,6 +3,6 @@
  * This ensures that README examples reflect usage with real-like data without exposing mock details.
  */
 export default class TestDB extends DBBrowser {
-    constructor(options?: {});
+	constructor(options?: {})
 }
-import DBBrowser from "./DBBrowser.js";
+import DBBrowser from './DBBrowser.js'

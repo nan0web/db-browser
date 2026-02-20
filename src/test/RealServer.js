@@ -46,7 +46,10 @@ function createJsonServer(port, map) {
 		if (req.method === 'HEAD') {
 			if (Object.prototype.hasOwnProperty.call(map, pathname)) {
 				const data = map[pathname]
-				const size = typeof data === 'string' ? Buffer.byteLength(data) : Buffer.byteLength(JSON.stringify(data))
+				const size =
+					typeof data === 'string'
+						? Buffer.byteLength(data)
+						: Buffer.byteLength(JSON.stringify(data))
 				res.setHeader('Content-Length', size)
 				res.setHeader('Last-Modified', new Date().toUTCString())
 				res.statusCode = 200
@@ -103,11 +106,12 @@ function createJsonServer(port, map) {
  */
 export default async function startServer(files, options = { port: 0 }) {
 	const server = createJsonServer(options.port ?? 0, files)
-	await new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(true)))
+	await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(true)))
 	const address = server.address()
-	const port = typeof address === 'object' && address !== null && 'port' in address
-		? /** @type {number} */ (address.port)
-		: 0
+	const port =
+		typeof address === 'object' && address !== null && 'port' in address
+			? /** @type {number} */ (address.port)
+			: 0
 	const baseUrl = `http://127.0.0.1:${port}`
 	return { server, port, baseUrl }
 }

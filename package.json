@@ -1,21 +1,24 @@
 {
 	"name": "@nan0web/db-browser",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "Browser Database client as extension of @nan0web/db",
 	"main": "src/index.js",
 	"types": "types/index.d.ts",
 	"type": "module",
 	"scripts": {
 		"build": "tsc",
-		"test": "node --test --test-timeout=3333 \"src/**/*.test.js\" | nan0test parse --fail",
+		"test": "node --test --test-timeout=3333 \"src/**/*.test.js\"",
 		"test:coverage": "node --test --experimental-test-coverage src/",
 		"clean": "rm -rf .cache/ && rm -rf dist/",
 		"clean:modules": "rm -rf node_modules",
 		"test:docs": "node --test src/README.md.js",
-		"test:release": "node --test \"releases/**/*.test.js\"",
+		"test:release": "node --test \"src/test/releases/**/*.test.js\"",
+		"release:spec": "node --test \"releases/**/*.spec.js\"",
 		"test:coverage:collect": "nan0test coverage",
 		"test:status": "nan0test status",
-		"test:all": "npm run test && npm run test:docs && npm run build",
+		"test:all": "npm run test; npm run test:docs && npm run build && npm run knip && npm run audit",
+		"knip": "knip --production",
+		"audit": "pnpm audit --prod || true",
 		"precommit": "npm test",
 		"prepush": "npm test",
 		"prepare": "husky",
@@ -40,10 +43,14 @@
 		"@nan0web/release": "^1.0.1",
 		"@nan0web/test": "^1.1.3",
 		"@nan0web/ui-cli": "^1.1.1",
-		"husky": "^9.1.7"
+		"husky": "^9.1.7",
+		"knip": "^5.84.1"
 	},
 	"peerDependencies": {
 		"@nan0web/db": "^1.0.2",
 		"@nan0web/http": "^1.0.1"
+	},
+	"dependencies": {
+		"@nan0web/log": "1.1.1"
 	}
 }

@@ -2,8 +2,8 @@
 # 📘 system.md – інструкція для LLM та розробників **db-browser**
 ---
 
-
 ## 🪄 Призначення
+
 `@nan0web/db-browser` – це клієнт бази даних для браузера, що розширює `@nan0web/db`.  
 Забезпечує:
 
@@ -12,29 +12,29 @@
 - Підтримка індексів, глобальних змінних (`_/`) та `.nano`‑формату
 - Безпечне тестування (TDD/BDD) у `node:test`
 
-LLM‑модель використовує цей файл як *system prompt*: вона повинна слідувати правилам, описаним нижче, і реагувати українською.
+LLM‑модель використовує цей файл як _system prompt_: вона повинна слідувати правилам, описаним нижче, і реагувати українською.
 
 ---
 
 ## ⚙️ Налаштування середовища
 
-| Параметр | Опис | Приклад |
-|----------|------|---------|
-| `host` | Базовий URL серверу (без слешу в кінці) | `https://api.example.com` |
-| `root` | Кореневий шлях у базі (завжди закінчується `/`) | `/data/` |
-| `timeout` | Тайм‑аут запитів у мс | `6_000` |
-| `fetchFn` | Функція `fetch` (можна підмінити моками у тестах) | `mockFetch([...])` |
-| `console` | Об’єкт `Console`/`NoConsole` для логування | `new NoConsole()` |
+| Параметр  | Опис                                              | Приклад                   |
+| --------- | ------------------------------------------------- | ------------------------- |
+| `host`    | Базовий URL серверу (без слешу в кінці)           | `https://api.example.com` |
+| `root`    | Кореневий шлях у базі (завжди закінчується `/`)   | `/data/`                  |
+| `timeout` | Тайм‑аут запитів у мс                             | `6_000`                   |
+| `fetchFn` | Функція `fetch` (можна підмінити моками у тестах) | `mockFetch([...])`        |
+| `console` | Об’єкт `Console`/`NoConsole` для логування        | `new NoConsole()`         |
 
 ```js
 import DBBrowser from '@nan0web/db-browser'
 
 const db = new DBBrowser({
-    host: 'https://api.example.com',
-    root: '/data/',
-    timeout: 8_000,
-    fetchFn: window.fetch,      // або mockFetch у тестах
-    console: console,
+  host: 'https://api.example.com',
+  root: '/data/',
+  timeout: 8_000,
+  fetchFn: window.fetch, // або mockFetch у тестах
+  console: console,
 })
 ```
 
@@ -42,20 +42,20 @@ const db = new DBBrowser({
 
 ## 📖 Короткий API
 
-| Метод | Опис | Повертає |
-|-------|------|----------|
-| `fetch(uri)` | GET‑документ, повертає JSON або `{error}` | `any` |
-| `fetchRemote(uri, init?)` | Низькорівневий fetch з тайм‑аутом | `Response` |
-| `loadDocument(uri, default?)` | GET‑з інтерпретацією помилок, `default` при провалі | `any` |
-| `saveDocument(uri, data)` | POST – створює новий документ | `any` |
-| `writeDocument(uri, data)` | PUT – оновлює існуючий | `any` |
-| `dropDocument(uri)` | DELETE – видаляє | `true` |
-| `statDocument(uri)` | HEAD – метадані (`size`, `mtimeMs`, `isFile`) | `DocumentStat` |
-| `resolve(...segments)` | Резольв URI, без хоста, повертає шлях з `/` | `string` |
-| `resolveSync(...segments)` | Синхронний варіант `resolve` | `string` |
-| `extract(subPath)` | Створює під‑БД, коренем `subPath` | `DBBrowser` |
-| `readDir(path)` | Перебір елементів каталогу (через індекс) | Async‑итератор `DirectoryEntry` |
-| `static from(input)` | Фабричний метод – повертає існуючий або новий екземпляр | `DBBrowser` |
+| Метод                         | Опис                                                    | Повертає                        |
+| ----------------------------- | ------------------------------------------------------- | ------------------------------- |
+| `fetch(uri)`                  | GET‑документ, повертає JSON або `{error}`               | `any`                           |
+| `fetchRemote(uri, init?)`     | Низькорівневий fetch з тайм‑аутом                       | `Response`                      |
+| `loadDocument(uri, default?)` | GET‑з інтерпретацією помилок, `default` при провалі     | `any`                           |
+| `saveDocument(uri, data)`     | POST – створює новий документ                           | `any`                           |
+| `writeDocument(uri, data)`    | PUT – оновлює існуючий                                  | `any`                           |
+| `dropDocument(uri)`           | DELETE – видаляє                                        | `true`                          |
+| `statDocument(uri)`           | HEAD – метадані (`size`, `mtimeMs`, `isFile`)           | `DocumentStat`                  |
+| `resolve(...segments)`        | Резольв URI, без хоста, повертає шлях з `/`             | `string`                        |
+| `resolveSync(...segments)`    | Синхронний варіант `resolve`                            | `string`                        |
+| `extract(subPath)`            | Створює під‑БД, коренем `subPath`                       | `DBBrowser`                     |
+| `readDir(path)`               | Перебір елементів каталогу (через індекс)               | Async‑итератор `DirectoryEntry` |
+| `static from(input)`          | Фабричний метод – повертає існуючий або новий екземпляр | `DBBrowser`                     |
 
 ---
 

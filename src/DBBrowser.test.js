@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, mock } from 'node:test'
 import assert from 'node:assert/strict'
-import { mockFetch } from "@nan0web/http-node/test"
-import "@nan0web/test/jsdom"
+import { mockFetch } from '@nan0web/http-node/test'
+import '@nan0web/test/jsdom'
 import { HTTPError } from '@nan0web/http'
 import DBBrowser from './DBBrowser.js'
 import { DirectoryIndex } from '@nan0web/db'
@@ -31,7 +31,7 @@ function createIndexEntries(dir, files) {
 				size: content ? JSON.stringify(content).length : 0,
 				isFile: !isDir,
 				isDirectory: isDir,
-			}
+			},
 		])
 	}
 
@@ -65,30 +65,29 @@ function createDBWithIndices(files = {}) {
 		const index = new DirectoryIndex()
 		const indexData = index.encode({ entries: indexEntries })
 
-		indexRules.push([
-			`GET ${dir}${DirectoryIndex.INDEX}`,
-			indexData
-		])
+		indexRules.push([`GET ${dir}${DirectoryIndex.INDEX}`, indexData])
 
 		indexRules.push([
 			`GET ${dir}${DirectoryIndex.FULL_INDEX}`,
-			JSON.stringify(indexEntries.map(([name, stat]) => ({
-				name,
-				mtimeMs: stat.mtimeMs,
-				size: stat.size,
-				type: stat.isDirectory ? 'D' : 'F'
-			})))
+			JSON.stringify(
+				indexEntries.map(([name, stat]) => ({
+					name,
+					mtimeMs: stat.mtimeMs,
+					size: stat.size,
+					type: stat.isDirectory ? 'D' : 'F',
+				})),
+			),
 		])
 	}
 
 	return new DBBrowser({
-		cwd: "http://localhost",
-		root: "/",
+		cwd: 'http://localhost',
+		root: '/',
 		timeout: 99,
 		fetchFn: mockFetch([
 			...Object.entries(files).map(([path, content]) => [`GET ${path}`, content]),
-			...indexRules
-		])
+			...indexRules,
+		]),
 	})
 }
 
@@ -110,7 +109,7 @@ describe('DBBrowser', () => {
 		it('should initialize with custom values', () => {
 			const customDB = new DBBrowser({
 				host: 'https://example.com',
-				timeout: 10_000
+				timeout: 10_000,
 			})
 			assert.equal(customDB.host, 'https://example.com')
 			assert.equal(customDB.timeout, 10_000)
@@ -121,7 +120,7 @@ describe('DBBrowser', () => {
 		it('should validate access level', async () => {
 			await assert.rejects(
 				async () => await db.ensureAccess('public/data.json', 'invalid'),
-				TypeError
+				TypeError,
 			)
 
 			await assert.doesNotReject(async () => await db.ensureAccess('public/data.json', 'r'))
@@ -130,50 +129,55 @@ describe('DBBrowser', () => {
 		})
 	})
 
-	it("should detect global paths", () => {
-		assert.equal(DBBrowser.Directory.isGlobal("/_/file"), true)
-		assert.equal(DBBrowser.Directory.isGlobal("/_/dir/file"), true)
-		assert.equal(DBBrowser.Directory.isGlobal("/dir/_/file"), true)
-		assert.equal(DBBrowser.Directory.isGlobal("dir/_/file"), true)
-		assert.equal(DBBrowser.Directory.isGlobal("/file"), false)
+	it('should detect global paths', () => {
+		assert.equal(DBBrowser.Directory.isGlobal('/_/file'), true)
+		assert.equal(DBBrowser.Directory.isGlobal('/_/dir/file'), true)
+		assert.equal(DBBrowser.Directory.isGlobal('/dir/_/file'), true)
+		assert.equal(DBBrowser.Directory.isGlobal('dir/_/file'), true)
+		assert.equal(DBBrowser.Directory.isGlobal('/file'), false)
 	})
 
-	it("should detect directory paths", () => {
-		assert.equal(DBBrowser.Directory.isDirectory("/dir/"), true)
-		assert.equal(DBBrowser.Directory.isDirectory("dir/"), true)
-		assert.equal(DBBrowser.Directory.isDirectory("/file"), false)
-		assert.equal(DBBrowser.Directory.isDirectory("file"), false)
+	it('should detect directory paths', () => {
+		assert.equal(DBBrowser.Directory.isDirectory('/dir/'), true)
+		assert.equal(DBBrowser.Directory.isDirectory('dir/'), true)
+		assert.equal(DBBrowser.Directory.isDirectory('/file'), false)
+		assert.equal(DBBrowser.Directory.isDirectory('file'), false)
 	})
 
-	it("should find valid global name", () => {
-		assert.equal(DBBrowser.Directory.getGlobalName("/_/valid-name.json"), "valid-name")
-		assert.equal(DBBrowser.Directory.getGlobalName("/_/valid-name.yaml"), "valid-name")
-		assert.equal(DBBrowser.Directory.getGlobalName("/posts/_/valid-name"), "valid-name")
+	it('should find valid global name', () => {
+		assert.equal(DBBrowser.Directory.getGlobalName('/_/valid-name.json'), 'valid-name')
+		assert.equal(DBBrowser.Directory.getGlobalName('/_/valid-name.yaml'), 'valid-name')
+		assert.equal(DBBrowser.Directory.getGlobalName('/posts/_/valid-name'), 'valid-name')
 	})
 
-	it("should return empty name when not global", () => {
-		assert.equal(DBBrowser.Directory.getGlobalName("/not-global.json"), "")
+	it('should return empty name when not global', () => {
+		assert.equal(DBBrowser.Directory.getGlobalName('/not-global.json'), '')
 	})
 
-	it("should return empty name for invalid global paths", () => {
-		assert.equal(DBBrowser.Directory.getGlobalName("/_/"), "")
-		assert.equal(DBBrowser.Directory.getGlobalName("/_/."), "")
-		assert.equal(DBBrowser.Directory.getGlobalName("/_/.json"), "")
+	it('should return empty name for invalid global paths', () => {
+		assert.equal(DBBrowser.Directory.getGlobalName('/_/'), '')
+		assert.equal(DBBrowser.Directory.getGlobalName('/_/.'), '')
+		assert.equal(DBBrowser.Directory.getGlobalName('/_/.json'), '')
 	})
 
-	describe("fetch", () => {
-		it("should not go into infinite loop", async () => {
+	describe('fetch', () => {
+		it('should not go into infinite loop', async () => {
 			const db = new DBBrowser({
-				cwd: "http://localhost", root: "/", timeout: 99,
-				fetchFn: mockFetch([
-					["GET /_.json", { "nav": [{ href: "index.html", title: "Home" }] }],
-					["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
-				], "http://localhost")
+				cwd: 'http://localhost',
+				root: '/',
+				timeout: 99,
+				fetchFn: mockFetch(
+					[
+						['GET /_.json', { nav: [{ href: 'index.html', title: 'Home' }] }],
+						['GET /typography.json', { $content: [{ h1: 'Typography' }] }],
+					],
+					'http://localhost',
+				),
 			})
 			await db.connect()
-			const result = await db.fetch("typography.json")
+			const result = await db.fetch('typography.json')
 			assert.deepEqual(result, {
-				$content: [{ h1: "Typography" }]
+				$content: [{ h1: 'Typography' }],
 			})
 		})
 	})
@@ -188,7 +192,7 @@ describe('DBBrowser', () => {
 				statusText: 'OK',
 				type: 'basic',
 				redirected: false,
-				json: async () => ({ content: 'test' })
+				json: async () => ({ content: 'test' }),
 			}
 
 			db.fetchFn = mock.fn(async () => mockResponse)
@@ -201,13 +205,13 @@ describe('DBBrowser', () => {
 
 		it.skip('should throw HTTPError on timeout', async () => {
 			const db = new DBBrowser({
-				host: "http://localhost",
+				host: 'http://localhost',
 				fetchFn: async () => {
 					return new Promise((resolve) => {
 						setTimeout(() => resolve({ ok: true }), 10_000)
 					})
 				},
-				timeout: 33
+				timeout: 33,
 			})
 
 			await assert.rejects(
@@ -217,7 +221,7 @@ describe('DBBrowser', () => {
 					assert.equal(err.message, 'Request timeout')
 					assert.equal(err.status, 408)
 					return true
-				}
+				},
 			)
 		})
 
@@ -232,8 +236,45 @@ describe('DBBrowser', () => {
 				(err) => {
 					assert.equal(err, error)
 					return true
-				}
+				},
 			)
+		})
+
+		it('should retry with .json extension on HTTP 403 (Apache directory listing)', async () => {
+			let callCount = 0
+			const db = new DBBrowser({
+				cwd: 'http://localhost',
+				root: '/',
+				timeout: 99,
+				fetchFn: mock.fn(async (url) => {
+					callCount++
+					if (url === 'http://localhost/_') {
+						return {
+							ok: false,
+							status: 403,
+							headers: new Map(),
+							json: async () => ({ error: 'Forbidden' }),
+							text: async () => 'Forbidden',
+						}
+					}
+					if (url === 'http://localhost/_.json') {
+						return {
+							ok: true,
+							status: 200,
+							headers: new Map([['content-type', 'application/json']]),
+							json: async () => ({ nav: [{ href: '/', title: 'Home' }] }),
+							text: async () => JSON.stringify({ nav: [{ href: '/', title: 'Home' }] }),
+						}
+					}
+					return { ok: false, status: 404, headers: new Map() }
+				}),
+			})
+
+			const response = await db.fetchRemote('_')
+			assert.equal(response.ok, true)
+			assert.equal(response.status, 200)
+			assert.deepEqual(await response.json(), { nav: [{ href: '/', title: 'Home' }] })
+			assert.ok(callCount >= 2, 'Should have retried at least once')
 		})
 	})
 
@@ -241,8 +282,8 @@ describe('DBBrowser', () => {
 		// @todo make it sense to remove the load function, already removed?
 		it('should load index file', async () => {
 			const db = createDB({
-				"/index.json": { global: true },
-				"*": new Error("Not found")
+				'/index.json': { global: true },
+				'*': new Error('Not found'),
 			})
 
 			const data = await db.load()
@@ -264,7 +305,7 @@ describe('DBBrowser', () => {
 			db.fetchFn = mock.fn(async (url, options) => {
 				return {
 					ok: true,
-					json: async () => ({ content: 'test' })
+					json: async () => ({ content: 'test' }),
 				}
 			})
 
@@ -279,7 +320,7 @@ describe('DBBrowser', () => {
 					status: 404,
 					json: async () => {
 						throw new Error('Not found')
-					}
+					},
 				}
 			})
 
@@ -302,9 +343,9 @@ describe('DBBrowser', () => {
 					assert.deepEqual(JSON.parse(init.body), { test: 'data' })
 					return {
 						ok: true,
-						json: async () => ({ saved: true })
+						json: async () => ({ saved: true }),
 					}
-				}
+				},
 			})
 
 			const result = await db.saveDocument('test.json', { test: 'data' })
@@ -317,14 +358,14 @@ describe('DBBrowser', () => {
 					return {
 						ok: false,
 						status: 500,
-						json: async () => ({ error: 'Server error' })
+						json: async () => ({ error: 'Server error' }),
 					}
-				}
+				},
 			})
 
 			await assert.rejects(
 				async () => await db.saveDocument('test.json', { test: 'data' }),
-				HTTPError
+				HTTPError,
 			)
 		})
 	})
@@ -337,7 +378,7 @@ describe('DBBrowser', () => {
 				assert.deepEqual(JSON.parse(init.body), { test: 'data' })
 				return {
 					ok: true,
-					json: async () => ({ written: true })
+					json: async () => ({ written: true }),
 				}
 			})
 
@@ -350,13 +391,13 @@ describe('DBBrowser', () => {
 				return {
 					ok: false,
 					status: 500,
-					json: async () => ({ error: 'Server error' })
+					json: async () => ({ error: 'Server error' }),
 				}
 			})
 
 			await assert.rejects(
 				async () => await db.writeDocument('test.json', { test: 'data' }),
-				HTTPError
+				HTTPError,
 			)
 		})
 	})
@@ -367,7 +408,7 @@ describe('DBBrowser', () => {
 				assert.equal(init.method, 'DELETE')
 				return {
 					ok: true,
-					json: async () => ({})
+					json: async () => ({}),
 				}
 			})
 
@@ -380,42 +421,48 @@ describe('DBBrowser', () => {
 				return {
 					ok: false,
 					status: 500,
-					json: async () => ({ error: 'Server error' })
+					json: async () => ({ error: 'Server error' }),
 				}
 			})
 
-			await assert.rejects(
-				async () => await db.dropDocument('test.json'),
-				HTTPError
-			)
+			await assert.rejects(async () => await db.dropDocument('test.json'), HTTPError)
 		})
 	})
 
-	describe("statDocument", () => {
-		it("should load document without index", async () => {
-			const db = new DBBrowser({ cwd: "http://localhost", root: "/", timeout: 99 })
-			db.fetchFn = mockFetch([
-				["HEAD /typography.json",
-					{ "Content-Length": "123", "Last-Modified": "Wed, 21 Oct 2015 07:28:00 GMT" }
+	describe('statDocument', () => {
+		it('should load document without index', async () => {
+			const db = new DBBrowser({ cwd: 'http://localhost', root: '/', timeout: 99 })
+			db.fetchFn = mockFetch(
+				[
+					[
+						'HEAD /typography.json',
+						{ 'Content-Length': '123', 'Last-Modified': 'Wed, 21 Oct 2015 07:28:00 GMT' },
+					],
+					['GET /typography.json', { $content: [{ h1: 'Typography' }] }],
 				],
-				["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
-			], "http://localhost")
-			const stat = await db.statDocument("typography.json")
+				'http://localhost',
+			)
+			const stat = await db.statDocument('typography.json')
 			assert.ok(stat.isFile)
 			assert.equal(stat.size, 123)
 			assert.equal(stat.mtimeMs, 1_445_412_480_000) // 2015-10-21 07:28:00 UTC in milliseconds
 		})
 
-		it("should handle missing Last-Modified header", async () => {
+		it('should handle missing Last-Modified header', async () => {
 			const db = new DBBrowser({
-				cwd: "http://localhost", root: "/", timeout: 99,
-				fetchFn: mockFetch([
-					["HEAD /typography.json", { "Content-Length": "123" }],
-					["GET /typography.json", { "$content": [{ h1: "Typography" }] }],
-				], "http://localhost")
+				cwd: 'http://localhost',
+				root: '/',
+				timeout: 99,
+				fetchFn: mockFetch(
+					[
+						['HEAD /typography.json', { 'Content-Length': '123' }],
+						['GET /typography.json', { $content: [{ h1: 'Typography' }] }],
+					],
+					'http://localhost',
+				),
 			})
 			await db.connect()
-			const stat = await db.statDocument("typography.json")
+			const stat = await db.statDocument('typography.json')
 			assert.ok(stat.isFile)
 			assert.equal(stat.size, 123)
 			assert.ok(stat.mtimeMs > 0)

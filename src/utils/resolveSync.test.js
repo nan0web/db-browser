@@ -8,20 +8,23 @@ describe('resolveSync', () => {
 		root: '/',
 	}
 
-	it("should properly resolve / + index.json", () => {
-		assert.equal(resolveSync(context, "/", "index.js"), "/index.js")
+	it('should properly resolve / + index.json', () => {
+		assert.equal(resolveSync(context, '/', 'index.js'), '/index.js')
 	})
 
-	it("should properly resolve / + index.json and hash", () => {
-		assert.equal(resolveSync(context, "/", "index.js#ref"), "/index.js#ref")
+	it('should properly resolve / + index.json and hash', () => {
+		assert.equal(resolveSync(context, '/', 'index.js#ref'), '/index.js#ref')
 	})
 
-	it("should resolve empty string to root", () => {
-		assert.equal(resolveSync(context, ""), "/")
+	it('should resolve empty string to root', () => {
+		assert.equal(resolveSync(context, ''), '/')
 	})
 
-	it("should handle query parameters and fragments", () => {
-		assert.equal(resolveSync(context, "users.json?limit=10#section"), "/users.json?limit=10#section")
+	it('should handle query parameters and fragments', () => {
+		assert.equal(
+			resolveSync(context, 'users.json?limit=10#section'),
+			'/users.json?limit=10#section',
+		)
 	})
 
 	it('should normalize duplicate slashes', async () => {
@@ -29,71 +32,80 @@ describe('resolveSync', () => {
 		assert.strictEqual(result, '/users.json')
 	})
 
-	it("should resolve with multiple arguments", () => {
-		assert.equal(resolveSync(context, "/api", "users.json"), "/api/users.json")
+	it('should resolve with multiple arguments', () => {
+		assert.equal(resolveSync(context, '/api', 'users.json'), '/api/users.json')
 	})
 
-	it("should resolve paths correctly with non-root base", () => {
+	it('should resolve paths correctly with non-root base', () => {
 		const ctx = { cwd: 'http://localhost', root: '/app/' }
-		assert.equal(resolveSync(ctx, "file.json"), "/app/file.json")
+		assert.equal(resolveSync(ctx, 'file.json'), '/app/file.json')
 	})
 
 	// Additional tests for root != /
-	it("should resolve relative path with non-root base context", () => {
+	it('should resolve relative path with non-root base context', () => {
 		const ctx = { cwd: 'http://localhost', root: '/admin/' }
-		assert.equal(resolveSync(ctx, "users/list"), "/admin/users/list")
+		assert.equal(resolveSync(ctx, 'users/list'), '/admin/users/list')
 	})
 
-	it("should resolve absolute path with non-root base context", () => {
+	it('should resolve absolute path with non-root base context', () => {
 		const ctx = { cwd: 'http://localhost', root: '/dashboard/' }
-		assert.equal(resolveSync(ctx, "/api/data"), "/api/data")
+		assert.equal(resolveSync(ctx, '/api/data'), '/api/data')
 	})
 
-	it("should resolve multiple segments with non-root base context", () => {
+	it('should resolve multiple segments with non-root base context', () => {
 		const ctx = { cwd: 'http://localhost', root: '/project/' }
-		assert.equal(resolveSync(ctx, "src", "components", "Button.jsx"), "/project/src/components/Button.jsx")
+		assert.equal(
+			resolveSync(ctx, 'src', 'components', 'Button.jsx'),
+			'/project/src/components/Button.jsx',
+		)
 	})
 
-	it("should handle nested root path properly", () => {
+	it('should handle nested root path properly', () => {
 		const ctx = { cwd: 'http://localhost', root: '/app/admin/' }
-		assert.equal(resolveSync(ctx, "config.json"), "/app/admin/config.json")
+		assert.equal(resolveSync(ctx, 'config.json'), '/app/admin/config.json')
 	})
 
 	// Edge cases
-	it("should handle null and undefined arguments", () => {
-		assert.equal(resolveSync(context, null, "test.js", undefined), "/test.js")
+	it('should handle null and undefined arguments', () => {
+		assert.equal(resolveSync(context, null, 'test.js', undefined), '/test.js')
 	})
 
-	it("should handle remote URLs correctly", () => {
-		assert.equal(resolveSync(context, "http://external.com/api"), "http://external.com/api")
+	it('should handle remote URLs correctly', () => {
+		assert.equal(resolveSync(context, 'http://external.com/api'), 'http://external.com/api')
 	})
 
-	it("should handle remote URLs with query parameters", () => {
-		assert.equal(resolveSync(context, "https://api.example.com/data?format=json"), "https://api.example.com/data?format=json")
+	it('should handle remote URLs with query parameters', () => {
+		assert.equal(
+			resolveSync(context, 'https://api.example.com/data?format=json'),
+			'https://api.example.com/data?format=json',
+		)
 	})
 
-	it("should return root when all arguments are empty or filtered out", () => {
-		assert.equal(resolveSync(context, null, undefined, ""), "/")
+	it('should return root when all arguments are empty or filtered out', () => {
+		assert.equal(resolveSync(context, null, undefined, ''), '/')
 	})
 
-	it("should handle complex path with dots and parent references", () => {
+	it('should handle complex path with dots and parent references', () => {
 		const ctx = { cwd: 'http://localhost', root: '/site/' }
-		assert.equal(resolveSync(ctx, "pages/../images/logo.png"), "/site/images/logo.png")
+		assert.equal(resolveSync(ctx, 'pages/../images/logo.png'), '/site/images/logo.png')
 	})
 
-	it("should preserve query and hash in complex scenarios", () => {
+	it('should preserve query and hash in complex scenarios', () => {
 		const ctx = { cwd: 'http://localhost', root: '/web/' }
-		assert.equal(resolveSync(ctx, "api/users.json?limit=5&page=2#results"), "/web/api/users.json?limit=5&page=2#results")
+		assert.equal(
+			resolveSync(ctx, 'api/users.json?limit=5&page=2#results'),
+			'/web/api/users.json?limit=5&page=2#results',
+		)
 	})
 
-	it("should handle root context ending without slash", () => {
+	it('should handle root context ending without slash', () => {
 		const ctx = { cwd: 'http://localhost', root: '/noslash' }
-		assert.equal(resolveSync(ctx, "file.txt"), "/noslash/file.txt")
+		assert.equal(resolveSync(ctx, 'file.txt'), '/noslash/file.txt')
 	})
 
-	it("should handle deeply nested paths", () => {
+	it('should handle deeply nested paths', () => {
 		const ctx = { cwd: 'http://localhost', root: '/deep/nested/path/' }
-		assert.equal(resolveSync(ctx, "a", "b", "c", "d.js"), "/deep/nested/path/a/b/c/d.js")
+		assert.equal(resolveSync(ctx, 'a', 'b', 'c', 'd.js'), '/deep/nested/path/a/b/c/d.js')
 	})
 
 	it('should resolve URI components correctly', () => {
