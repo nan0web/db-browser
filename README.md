@@ -2,9 +2,7 @@
 
 Browser Database client as extension of @nan0web/db
 
-|Package name|[Status](https://github.com/nan0web/monorepo/blob/main/system.md#написання-сценаріїв)|Documentation|Test coverage|Features|Npm version|
-|---|---|---|---|---|---|
- |[@nan0web/db-browser](https://github.com/nan0web/db-browser/) |🟢 `97.5%` |🧪 [English 🏴󠁧󠁢󠁥󠁮󠁧󠁿](https://github.com/nan0web/db-browser/blob/main/README.md)<br />[Українською 🇺🇦](https://github.com/nan0web/db-browser/blob/main/docs/uk/README.md) |🟡 `85.7%` |✅ d.ts 📜 system.md 🕹️ playground |1.0.0 |
+<!-- %PACKAGE_STATUS% -->
 
 ## Description
 
@@ -43,10 +41,10 @@ How to fetch a document?
 ```js
 import DBBrowser from "@nan0web/db-browser"
 const db = new DBBrowser({
-	host: "https://api.example.com",
-	root: "/data/"
+	host: 'https://api.example.com',
+	root: '/data/',
 })
-const users = await db.fetch("users.json")
+const users = await db.fetch('users.json')
 console.info(users)
 // [
 //   {"email":"alice@example.com","id":1,"name":"Alice"},
@@ -62,11 +60,11 @@ How to save a new document?
 ```js
 import DBBrowser from "@nan0web/db-browser"
 const db = new DBBrowser({
-	host: "https://api.example.com",
-	root: "/data/"
+	host: 'https://api.example.com',
+	root: '/data/',
 })
-const result = await db.saveDocument("new-file.json", { test: "value" })
-console.info("Save result:", result) // ← Save result: true
+const result = await db.saveDocument('new-file.json', { test: 'value' })
+console.info('Save result:', result) // ← Save result: true
 ```
 ### Writing Documents
 
@@ -76,16 +74,16 @@ How to write (update) a document?
 ```js
 import DBBrowser from "@nan0web/db-browser"
 const db = new DBBrowser({
-	host: "https://api.example.com",
-	root: "/data/"
+	host: 'https://api.example.com',
+	root: '/data/',
 })
 const data = [
-	{ id: 1, name: "Alice Cooper", email: "alice@example.com" },
-	{ id: 2, name: "Bob Marley", email: "bob@example.com" },
-	{ id: 3, name: "Charlie Brown", email: "charlie@example.com" }
+	{ id: 1, name: 'Alice Cooper', email: 'alice@example.com' },
+	{ id: 2, name: 'Bob Marley', email: 'bob@example.com' },
+	{ id: 3, name: 'Charlie Brown', email: 'charlie@example.com' },
 ]
-const result = await db.writeDocument("users.json", data)
-console.info("Write result:", result) // ← Write result: { written: true }
+const result = await db.writeDocument('users.json', data)
+console.info('Write result:', result) // ← Write result: { written: true }
 ```
 ### Dropping Documents
 
@@ -95,11 +93,11 @@ How to drop a document?
 ```js
 import DBBrowser from "@nan0web/db-browser"
 const db = new DBBrowser({
-	host: "https://api.example.com",
-	root: "/data/"
+	host: 'https://api.example.com',
+	root: '/data/',
 })
-const result = await db.dropDocument("new-file.json")
-console.info("Drop result:", result) // ← Drop result: true
+const result = await db.dropDocument('new-file.json')
+console.info('Drop result:', result) // ← Drop result: true
 ```
 ### Directory Reading
 
@@ -109,14 +107,14 @@ How to read directory contents?
 ```js
 import DBBrowser from "@nan0web/db-browser"
 const db = new DBBrowser({
-	host: "https://api.example.com",
-	root: "/data/"
+	host: 'https://api.example.com',
+	root: '/data/',
 })
 const entries = []
-for await (const entry of db.readDir(".")) {
+for await (const entry of db.readDir('.')) {
 	entries.push(entry.name)
 }
-console.info("Directory entries:", entries)
+console.info('Directory entries:', entries)
 // Directory entries: ["users.json", "posts/first.json"]
 ```
 ### Search Documents
@@ -127,14 +125,14 @@ How to search for documents?
 ```js
 import DBBrowser from "@nan0web/db-browser"
 const db = new DBBrowser({
-	host: "https://api.example.com",
-	root: "/data/"
+	host: 'https://api.example.com',
+	root: '/data/',
 })
 const entries = []
-for await (const uri of db.find(uri => uri.endsWith(".json"))) {
+for await (const uri of db.find((uri) => uri.endsWith('.json'))) {
 	entries.push(uri)
 }
-console.info("Found JSON files:", entries)
+console.info('Found JSON files:', entries)
 // Found JSON files: ["/data/users.json", "/data/posts/first.json"]
 ```
 ### Extract Subset
@@ -145,13 +143,13 @@ How to extract a subset of the database?
 ```js
 import DBBrowser from "@nan0web/db-browser"
 const db = new DBBrowser({
-	host: "https://api.example.com",
-	root: "/data/"
+	host: 'https://api.example.com',
+	root: '/data/',
 })
-const subDB = db.extract("posts/")
-console.info("Subset cwd:", subDB.cwd) // ← Subset root: data/posts/
-console.info("Subset root:", subDB.root) // ← Subset root: data/posts/
-console.info("Subset instanceof DBBrowser:", subDB instanceof DBBrowser)
+const subDB = db.extract('posts/')
+console.info('Subset cwd:', subDB.cwd) // ← Subset root: data/posts/
+console.info('Subset root:', subDB.root) // ← Subset root: data/posts/
+console.info('Subset instanceof DBBrowser:', subDB instanceof DBBrowser)
 // Subset instanceof DBBrowser: true
 ```
 ## API

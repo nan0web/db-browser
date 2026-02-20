@@ -32,17 +32,17 @@ export class MockDBBrowser extends DBBrowser {
 		this.fetchRules.forEach(([method, body, options]) => {
 			if (method.startsWith('GET ')) {
 				const path = method.replace('GET ', '')
-				const contentLength = body && (typeof body === 'string' || typeof body === 'object')
-					? (typeof body === 'string' ? body.length : JSON.stringify(body).length)
-					: 0
+				const contentLength =
+					body && (typeof body === 'string' || typeof body === 'object')
+						? typeof body === 'string'
+							? body.length
+							: JSON.stringify(body).length
+						: 0
 
 				responses.push([
 					method,
 					body,
-					[
-						['Access-Control-Allow-Origin', '*'],
-						...(options?.headers || [])
-					]
+					[['Access-Control-Allow-Origin', '*'], ...(options?.headers || [])],
 				])
 
 				// Add HEAD response
@@ -53,20 +53,20 @@ export class MockDBBrowser extends DBBrowser {
 						['Access-Control-Allow-Origin', '*'],
 						['Content-Length', contentLength],
 						['Last-Modified', 'Wed, 21 Oct 2015 07:28:00 GMT'],
-						...(options?.headers || [])
-					]
+						...(options?.headers || []),
+					],
 				])
 			}
 			// Include other methods (POST, PUT, etc.)
 			else {
-				responses.push([method, body, options]);
+				responses.push([method, body, options])
 			}
 		})
 
 		// Add wildcard catch-all handler into 404
-		responses.push(['*', [404, { error: 'Not found' }]]);
+		responses.push(['*', [404, { error: 'Not found' }]])
 
-		return mockFetch(/** @type {[string, any][]} */(responses))
+		return mockFetch(/** @type {[string, any][]} */ (responses))
 	}
 
 	/**
@@ -81,7 +81,7 @@ export class MockDBBrowser extends DBBrowser {
 		// Filter fetchRules to only include those under the extracted URI
 		let prefix = uri
 		if (!prefix.endsWith('/')) prefix += '/'
-		if (!prefix.startsWith("/")) prefix = "/" + prefix
+		if (!prefix.startsWith('/')) prefix = '/' + prefix
 		const filteredRules = this.fetchRules.filter(([method]) => {
 			if (!method.startsWith('GET ')) return false
 			const path = method.replace('GET ', '')
@@ -130,15 +130,20 @@ export class MockDBBrowser extends DBBrowser {
 		await super.connect()
 
 		// Generate indexes with proper encoding format
-		const gen = DirectoryIndex.generateAllIndexes(this, ".")
+		const gen = DirectoryIndex.generateAllIndexes(this, '.')
 		for await (const [uri, index] of gen) {
 			// Encode properly and save
 			const encodedIndex = index.encode()
 			const abs = this.normalize(uri)
 			this.data.set(abs, encodedIndex)
-			this.meta.set(abs, new DocumentStat({
-				isFile: true, mtimeMs: Date.now(), size: String(encodedIndex).length,
-			}))
+			this.meta.set(
+				abs,
+				new DocumentStat({
+					isFile: true,
+					mtimeMs: Date.now(),
+					size: String(encodedIndex).length,
+				}),
+			)
 		}
 	}
 
@@ -153,12 +158,15 @@ export class MockDBBrowser extends DBBrowser {
 		const href = this.absolute(uri)
 		uri = this.normalize(uri)
 		this.data.set(uri, document)
-		this.meta.set(uri, new DocumentStat({
-			mtimeMs: Date.now(),
-			isFile: true,
-			size: ("string" === typeof document ? document : JSON.stringify(document)).length
-		}))
-		this.console.info("Saved document", { href, uri, document })
+		this.meta.set(
+			uri,
+			new DocumentStat({
+				mtimeMs: Date.now(),
+				isFile: true,
+				size: ('string' === typeof document ? document : JSON.stringify(document)).length,
+			}),
+		)
+		this.console.info('Saved document', { href, uri, document })
 		return true
 	}
 
@@ -171,15 +179,16 @@ export class MockDBBrowser extends DBBrowser {
 					const uri = this.normalize(path)
 
 					if (!this.meta.has(uri)) {
-						const size = typeof body === 'string'
-							? body.length
-							: JSON.stringify(body).length
+						const size = typeof body === 'string' ? body.length : JSON.stringify(body).length
 
-						this.meta.set(uri, new DocumentStat({
-							isFile: true,
-							mtimeMs: Date.now(),
-							size: size
-						}))
+						this.meta.set(
+							uri,
+							new DocumentStat({
+								isFile: true,
+								mtimeMs: Date.now(),
+								size: size,
+							}),
+						)
 					}
 
 					if (!this.data.has(uri)) {
@@ -188,9 +197,7 @@ export class MockDBBrowser extends DBBrowser {
 				}
 			}
 			const base = this.normalize(dirUri)
-			entries = Array.from(this.meta.entries()).filter(
-				([uri]) => uri.startsWith(base)
-			)
+			entries = Array.from(this.meta.entries()).filter(([uri]) => uri.startsWith(base))
 		}
 		return await super.saveIndex(dirUri, entries)
 	}
@@ -210,9 +217,9 @@ export function createDB(opts = {}) {
 	const {
 		fetchRules = [],
 		console = new NoConsole(),
-		root = "/",
+		root = '/',
 		host = 'http://localhost',
-		timeout = 99
+		timeout = 99,
 	} = opts
 
 	return new MockDBBrowser({ host, root, timeout, console, fetchRules })

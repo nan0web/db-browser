@@ -1,3 +1,3 @@
 export default class BrowserDirectory extends Directory {
 }
-import { Directory } from "@nan0web/db";
+import { Directory } from '@nan0web/db';

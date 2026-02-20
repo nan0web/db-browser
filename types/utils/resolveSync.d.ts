@@ -5,4 +5,3 @@
  * @returns {string} Resolved absolute URL
  */
 export function resolveSync(context: object, ...args: string[]): string;
-export default resolveSync;

@@ -12,7 +12,7 @@ export function resolveSync(context, ...args) {
 
 	// Filter out undefined/null values and coerce to strings
 	/** @type {string[]} */
-	let validArgs = args.filter(arg => arg != null).map(String)
+	let validArgs = args.filter((arg) => arg != null).map(String)
 
 	// If only an empty string was provided, return root
 	if (validArgs.length === 1 && validArgs[0] === '') {
@@ -22,7 +22,7 @@ export function resolveSync(context, ...args) {
 	// Ensure we have a valid base URL
 	const base = context.cwd || 'http://localhost'
 	let root = String(context.root || '/')
-	if (!root.endsWith("/")) root += "/"
+	if (!root.endsWith('/')) root += '/'
 
 	try {
 		// Process arguments through URL API
@@ -53,7 +53,7 @@ export function resolveSync(context, ...args) {
 		// Cut until absolute
 		let cutUntil = -1
 		for (let i = validArgs.length - 1; i >= 0; i--) {
-			if (validArgs[i].startsWith("/") || isRemote(validArgs[i])) {
+			if (validArgs[i].startsWith('/') || isRemote(validArgs[i])) {
 				cutUntil = i
 				break
 			}
@@ -62,7 +62,10 @@ export function resolveSync(context, ...args) {
 			validArgs = validArgs.slice(cutUntil)
 		}
 
-		const pathSegments = validArgs.join('/').split('/').filter(segment => segment !== '')
+		const pathSegments = validArgs
+			.join('/')
+			.split('/')
+			.filter((segment) => segment !== '')
 		let joinedPath = pathSegments.length > 0 ? pathSegments.join('/') : ''
 		if (cutUntil > -1) joinedPath = `/${joinedPath}`
 
@@ -70,12 +73,12 @@ export function resolveSync(context, ...args) {
 		if (joinedPath.startsWith('/')) {
 			// Absolute path - resolve against the origin (root of the domain)
 			const originUrl = new URL(base)
-			const [path0, ...search] = joinedPath.split("?")
-			const [path1, ...vars] = path0.split("&")
+			const [path0, ...search] = joinedPath.split('?')
+			const [path1, ...vars] = path0.split('&')
 			const [path, ...hash] = path1.split('#')
 
 			originUrl.pathname = path
-			originUrl.search = search.join("?") + vars.join("&")
+			originUrl.search = search.join('?') + vars.join('&')
 			originUrl.hash = hash.join('#')
 			url = originUrl
 		} else {
@@ -94,7 +97,7 @@ export function resolveSync(context, ...args) {
 		return href
 	} catch (error) {
 		// Fallback to simple path resolution
-		console.error("Error in resolveSync", { args, error })
+		console.error('Error in resolveSync', { args, error })
 		return resolveSyncSimple(context, ...args)
 	}
 }
@@ -119,7 +122,7 @@ function resolveSyncSimple(context, ...args) {
 	if (args.length === 0) return context.root
 
 	// Filter out undefined/null values and coerce to strings
-	const validArgs = args.filter(arg => arg != null).map(String)
+	const validArgs = args.filter((arg) => arg != null).map(String)
 
 	// If only an empty string was provided, return root
 	if (validArgs.length === 1 && validArgs[0] === '') {
@@ -181,5 +184,3 @@ function resolveSyncSimple(context, ...args) {
 
 	return result
 }
-
-export default resolveSync

@@ -1,0 +1,14 @@
+{
+	"$schema": "https://unpkg.com/knip@5/schema.json",
+	"entry": ["src/index.js"],
+	"project": ["src/**/*.js"],
+	"ignore": ["play/**", "releases/**", "src/README.md.js", "types/**"],
+	"ignoreDependencies": [
+		"@nan0web/log",
+		"@nan0web/release",
+		"@nan0web/test",
+		"@nan0web/ui-cli",
+		"@nan0web/http-node",
+		"husky"
+	]
+}

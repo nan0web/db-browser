@@ -1,8 +1,8 @@
-import DB, { DocumentStat, DocumentEntry } from "@nan0web/db"
-import { HTTPError } from "@nan0web/http"
-import { NoConsole } from "@nan0web/log"
-import BrowserDirectory from "./Directory.js"
-import resolveSync from "./utils/resolveSync.js"
+import DB, { DocumentStat, DocumentEntry } from '@nan0web/db'
+import { HTTPError } from '@nan0web/http'
+import { NoConsole } from '@nan0web/log'
+import BrowserDirectory from './Directory.js'
+import { resolveSync } from './utils/resolveSync.js'
 
 class Headers extends Map {
 	/**
@@ -35,18 +35,18 @@ export default class DBBrowser extends DB {
 	/** @type {Function} */
 	static get FetchFn() {
 		if (this.#FetchFn) return this.#FetchFn
-		if (typeof window !== "undefined" && window.fetch) {
+		if (typeof window !== 'undefined' && window.fetch) {
 			this.#FetchFn = window.fetch.bind(window)
 		} else {
 			this.#FetchFn = async () => {
-				throw new Error("Fetch not available in this environment")
+				throw new Error('Fetch not available in this environment')
 			}
 		}
 		return this.#FetchFn
 	}
 
 	/** @type {string} */
-	host = ""
+	host = ''
 	/** @type {number} */
 	timeout = 6_000
 
@@ -64,12 +64,7 @@ export default class DBBrowser extends DB {
 	 * @param {Console | NoConsole} [input.console] - The console for messages
 	 */
 	constructor(input = {}) {
-		const {
-			host = "",
-			timeout = 6_000,
-			fetchFn = DBBrowser.FetchFn,
-			root = "/",
-		} = input
+		const { host = '', timeout = 6_000, fetchFn = DBBrowser.FetchFn, root = '/' } = input
 
 		super({ ...input, root })
 		if (host) this.cwd = host
@@ -93,9 +88,9 @@ export default class DBBrowser extends DB {
 	 * @param {string} [level='r']
 	 * @returns {Promise<void>}
 	 */
-	async ensureAccess(uri, level = "r") {
-		if (!["r", "w", "d"].includes(level)) {
-			throw new TypeError("Access level must be one of [r, w, d]")
+	async ensureAccess(uri, level = 'r') {
+		if (!['r', 'w', 'd'].includes(level)) {
+			throw new TypeError('Access level must be one of [r, w, d]')
 		}
 	}
 
@@ -114,7 +109,7 @@ export default class DBBrowser extends DB {
 				return await response.text()
 			}
 		} catch (/** @type {any} */ err) {
-			return { error: "Not found" }
+			return { error: 'Not found' }
 		}
 	}
 
@@ -131,17 +126,17 @@ export default class DBBrowser extends DB {
 	async fetchRemote(uri, requestInit = {}, visited = new Set()) {
 		const absUri = await this.resolve(uri)
 		const isRemote = this.isRemote(absUri)
-		const baseHref = isRemote ? "" : this.cwd
+		const baseHref = isRemote ? '' : this.cwd
 		let href = isRemote ? absUri : new URL(absUri, baseHref).href
 
-		if (this.fetchFn.name === "mockFetch") {
+		if (this.fetchFn.name === 'mockFetch') {
 			const u = new URL(href)
 			href = u.pathname + u.search + u.hash
 		}
 
 		const controller = new AbortController()
 		const timeoutId = setTimeout(() => controller.abort(), this.timeout)
-		this.console.debug("fetchRemote()", uri, { href, requestInit, visited })
+		this.console.debug('fetchRemote()', uri, { href, requestInit, visited })
 
 		try {
 			let response = await this.fetchFn(href, {
@@ -152,13 +147,13 @@ export default class DBBrowser extends DB {
 
 			const hdrs = new Headers(response.headers ?? [])
 			let needExt = false
-			if (hdrs.has("content-type")) {
-				const [, ext] = hdrs.get("content-type").split("/")
-				if (this.Directory.DATA_EXTNAMES.every(e => !e.endsWith("/" + ext.slice(1)))) {
+			if (hdrs.has('content-type')) {
+				const [, ext] = hdrs.get('content-type').split('/')
+				if (this.Directory.DATA_EXTNAMES.every((e) => !e.endsWith('/' + ext.slice(1)))) {
 					needExt = true
 				}
 			}
-			const notFound = response.status === 404 && !visited.has(href)
+			const notFound = (response.status === 404 || response.status === 403) && !visited.has(href)
 			if ((needExt || notFound) && !this.extname(uri)) {
 				visited.add(href)
 				for (const ext of this.Directory.DATA_EXTNAMES) {
@@ -170,8 +165,8 @@ export default class DBBrowser extends DB {
 			return response
 		} catch (/** @type {any} */ err) {
 			clearTimeout(timeoutId)
-			if (err.name === "AbortError") {
-				throw new HTTPError("Request timeout", 408)
+			if (err.name === 'AbortError') {
+				throw new HTTPError('Request timeout', 408)
 			}
 			throw err
 		}
@@ -193,7 +188,10 @@ export default class DBBrowser extends DB {
 				payload = await response.text()
 			} catch {}
 		}
-		throw new HTTPError(String(payload?.error ?? payload?.message ?? payload ?? message), response.status)
+		throw new HTTPError(
+			String(payload?.error ?? payload?.message ?? payload ?? message),
+			response.status,
+		)
 	}
 
 	/**
@@ -207,16 +205,16 @@ export default class DBBrowser extends DB {
 	async statDocument(uri) {
 		const absUri = await this.resolve(uri)
 		const isRemote = this.isRemote(absUri)
-		const baseHref = isRemote ? "" : this.cwd
+		const baseHref = isRemote ? '' : this.cwd
 		let href = isRemote ? absUri : new URL(absUri, baseHref).href
 
-		const response = await this.fetchFn(href, { method: "HEAD" })
+		const response = await this.fetchFn(href, { method: 'HEAD' })
 		if (404 === response.status) return new DocumentStat()
 
 		const hdrs = new Headers(response.headers ?? {})
-		const lm = hdrs.get("last-modified") || hdrs.get("date")
+		const lm = hdrs.get('last-modified') || hdrs.get('date')
 		const mtimeMs = lm ? new Date(lm).getTime() : Date.now()
-		const size = Number(hdrs.get("content-length") ?? 0)
+		const size = Number(hdrs.get('content-length') ?? 0)
 
 		return new DocumentStat({
 			isFile: true,
@@ -232,7 +230,7 @@ export default class DBBrowser extends DB {
 	 * @returns {Promise<any>}
 	 */
 	async loadDocument(uri, defaultValue) {
-		await this.ensureAccess(uri, "r")
+		await this.ensureAccess(uri, 'r')
 		try {
 			const response = await this.fetchRemote(uri)
 			if (!response.ok) {
@@ -253,11 +251,11 @@ export default class DBBrowser extends DB {
 	 * @returns {Promise<any>}
 	 */
 	async saveDocument(uri, document) {
-		await this.ensureAccess(uri, "w")
+		await this.ensureAccess(uri, 'w')
 		const absUri = this.absolute(uri)
 		const response = await this.fetchFn(absUri, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(document),
 		})
 		if (!response.ok) {
@@ -273,11 +271,11 @@ export default class DBBrowser extends DB {
 	 * @returns {Promise<any>}
 	 */
 	async writeDocument(uri, document) {
-		await this.ensureAccess(uri, "w")
+		await this.ensureAccess(uri, 'w')
 		const absUri = await this.resolve(uri)
 		const response = await this.fetchRemote(absUri, {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(document),
 		})
 		if (!response.ok) {
@@ -301,9 +299,9 @@ export default class DBBrowser extends DB {
 	 * @returns {Promise<boolean>}
 	 */
 	async dropDocument(uri) {
-		await this.ensureAccess(uri, "d")
+		await this.ensureAccess(uri, 'd')
 		const absUri = await this.resolve(uri)
-		const response = await this.fetchRemote(absUri, { method: "DELETE" })
+		const response = await this.fetchRemote(absUri, { method: 'DELETE' })
 		if (!response.ok) {
 			await this.throwError(response, `Failed to delete document: ${uri}`)
 		}
@@ -322,16 +320,14 @@ export default class DBBrowser extends DB {
 	 */
 	extract(uri) {
 		// Normalise original root (strip leading/trailing slashes)
-		const cleanRoot = this.root.replace(/^\/+|\/+$/g, "")
+		const cleanRoot = this.root.replace(/^\/+|\/+$/g, '')
 		// Ensure uri does not start with a slash
-		const cleanUri = uri.replace(/^\/+/, "")
+		const cleanUri = uri.replace(/^\/+/, '')
 		// Build new relative root:  "<originalRoot>/<uri>"
-		const newRoot = cleanRoot
-			? `${cleanRoot}/${cleanUri}`
-			: cleanUri
+		const newRoot = cleanRoot ? `${cleanRoot}/${cleanUri}` : cleanUri
 
 		// Ensure trailing slash for directory semantics
-		const finalRoot = newRoot.endsWith("/") ? newRoot : `${newRoot}/`
+		const finalRoot = newRoot.endsWith('/') ? newRoot : `${newRoot}/`
 
 		return DBBrowser.from({
 			host: this.host,

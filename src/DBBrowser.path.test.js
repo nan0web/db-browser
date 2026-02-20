@@ -62,82 +62,86 @@ describe('DBBrowser path operations', () => {
 		})
 
 		it('should handle complex path resolution and returns without host', async () => {
-			const resolved = await db.resolve('http://localhost/api/v1/', './users/../posts/', 'latest.json')
+			const resolved = await db.resolve(
+				'http://localhost/api/v1/',
+				'./users/../posts/',
+				'latest.json',
+			)
 			assert.equal(resolved, '/api/v1/posts/latest.json')
 		})
 	})
 
-	describe("resolveSync", () => {
-		it("should properly resolve / + index.json", () => {
-			assert.equal(db.resolveSync("/", "index.js"), "/index.js")
+	describe('resolveSync', () => {
+		it('should properly resolve / + index.json', () => {
+			assert.equal(db.resolveSync('/', 'index.js'), '/index.js')
 		})
 
-		it("should properly resolve / + index.json and hash", () => {
-			assert.equal(db.resolveSync("/", "index.js#ref"), "/index.js#ref")
+		it('should properly resolve / + index.json and hash', () => {
+			assert.equal(db.resolveSync('/', 'index.js#ref'), '/index.js#ref')
 		})
 
-		it("should resolve empty string to root", () => {
-			assert.equal(db.resolveSync(""), "/")
+		it('should resolve empty string to root', () => {
+			assert.equal(db.resolveSync(''), '/')
 		})
 
-		it("should handle query parameters and fragments", () => {
-			assert.equal(db.resolveSync("users.json?limit=10#section"), "/users.json?limit=10#section")
+		it('should handle query parameters and fragments', () => {
+			assert.equal(db.resolveSync('users.json?limit=10#section'), '/users.json?limit=10#section')
 		})
 	})
 
-	describe.skip("relative", () => {
-		it("should compute relative path between same host URLs", () => {
+	describe.skip('relative', () => {
+		it('should compute relative path between same host URLs', () => {
 			db.cwd = 'http://localhost'
-			const from = "http://localhost/api/users/list.json"
-			const to = "http://localhost/api/posts/recent.json"
+			const from = 'http://localhost/api/users/list.json'
+			const to = 'http://localhost/api/posts/recent.json'
 			const result = db.relative(from, to)
-			assert.equal(result, "../posts/recent.json")
+			assert.equal(result, '../posts/recent.json')
 		})
 
-		it("should compute relative path with query parameters and hash", () => {
+		it('should compute relative path with query parameters and hash', () => {
 			db.cwd = 'http://localhost'
-			const from = "http://localhost/api/users/"
-			const to = "http://localhost/api/users/profile.json?tab=settings#info"
+			const from = 'http://localhost/api/users/'
+			const to = 'http://localhost/api/users/profile.json?tab=settings#info'
 			const result = db.relative(from, to)
-			assert.equal(result, "profile.json?tab=settings#info")
+			assert.equal(result, 'profile.json?tab=settings#info')
 		})
 
-		it("should return absolute path when hosts differ", () => {
-			const from = "http://localhost/api/users/"
-			const to = "https://example.com/api/posts/"
+		it('should return absolute path when hosts differ', () => {
+			const from = 'http://localhost/api/users/'
+			const to = 'https://example.com/api/posts/'
 			const result = db.relative(from, to)
-			assert.equal(result, "https://example.com/api/posts/")
+			assert.equal(result, 'https://example.com/api/posts/')
 		})
 
-		it("should handle paths in same directory", () => {
+		it('should handle paths in same directory', () => {
 			db.cwd = 'http://localhost'
-			const from = "http://localhost/api/data.json"
-			const to = "http://localhost/api/info.json"
+			const from = 'http://localhost/api/data.json'
+			const to = 'http://localhost/api/info.json'
 			const result = db.relative(from, to)
-			assert.equal(result, "info.json")
+			assert.equal(result, 'info.json')
 		})
 
-		it("should handle identical paths", () => {
-			const from = "http://localhost/api/data.json"
-			const to = "http://localhost/api/data.json"
+		it('should handle identical paths', () => {
+			const from = 'http://localhost/api/data.json'
+			const to = 'http://localhost/api/data.json'
 			const result = db.relative(from, to)
-			assert.equal(result, ".")
+			assert.equal(result, '.')
 		})
 
-		it("should handle root paths", () => {
+		it('should handle root paths', () => {
 			db.cwd = 'http://localhost'
-			const from = "http://localhost/"
-			const to = "http://localhost/api/info.json"
+			const from = 'http://localhost/'
+			const to = 'http://localhost/api/info.json'
 			const result = db.relative(from, to)
-			assert.equal(result, "api/info.json")
+			assert.equal(result, 'api/info.json')
 		})
 
-		it("should handle sibling directory navigation", () => {
+		it('should handle sibling directory navigation', () => {
 			db.cwd = 'http://localhost'
-			const from = "http://localhost/api/users/list"
-			const to = "http://localhost/api/posts/recent"
+			const from = 'http://localhost/api/users/list'
+			const to = 'http://localhost/api/posts/recent'
 			const result = db.relative(from, to)
-			assert.equal(result, "../posts/recent")
+			assert.equal(result, '../posts/recent')
 		})
 	})
 })

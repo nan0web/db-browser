@@ -121,6 +121,6 @@ export default class DBBrowser extends DB {
      */
     extract(uri: string): DBBrowser;
 }
-import DB from "@nan0web/db";
-import { DocumentStat } from "@nan0web/db";
-import { NoConsole } from "@nan0web/log";
+import DB from '@nan0web/db';
+import { DocumentStat } from '@nan0web/db';
+import { NoConsole } from '@nan0web/log';

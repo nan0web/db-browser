@@ -17,8 +17,7 @@ import { HTTPError } from '@nan0web/http'
 import { mockFetch, fetch } from '@nan0web/http-node'
 import { NoConsole } from '@nan0web/log'
 import DBBrowser from './DBBrowser.js'
-import startServer from "./test/RealServer.js"
-
+import startServer from './test/RealServer.js'
 
 // ---
 // Begin test suite -- fully network-mocked, no predefined
@@ -29,7 +28,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 	beforeEach(async () => {
 		db = new DBBrowser({
 			host: 'https://localhost',
-			fetchFn: mockFetch([])
+			fetchFn: mockFetch([]),
 		})
 	})
 
@@ -46,7 +45,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 			const custom = new DBBrowser({
 				host: 'https://example.com',
 				timeout: 10_000,
-				root: '/app/'
+				root: '/app/',
 			})
 			assert.equal(custom.host, 'https://example.com')
 			assert.equal(custom.timeout, 10_000)
@@ -61,15 +60,15 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		beforeEach(async () => {
 			db1 = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([])
+				fetchFn: mockFetch([]),
 			})
 			db2 = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([])
+				fetchFn: mockFetch([]),
 			})
 			db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([])
+				fetchFn: mockFetch([]),
 			})
 		})
 
@@ -110,15 +109,15 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should create a DB subset by loading remote data', async () => {
 			// 0️⃣ => random free port
 			const app = await startServer({
-				'dir/file1.txt': "c1",
-				'dir/file2.txt': "c2",
-				'other.txt': "c3",
+				'dir/file1.txt': 'c1',
+				'dir/file2.txt': 'c2',
+				'other.txt': 'c3',
 			})
 			const db = new DBBrowser({ host: `https://localhost:${app.port}`, fetchFn: fetch })
 			await db.connect()
 
 			const sub = db.extract('dir/')
-			const file1 = await sub.loadDocument('file1.txt', "")
+			const file1 = await sub.loadDocument('file1.txt', '')
 			const file2 = await sub.fetch('file2.txt')
 
 			assert.strictEqual(sub.root, 'dir/')
@@ -216,8 +215,8 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 				host: 'https://localhost',
 				fetchFn: mockFetch([
 					['GET https://localhost/test.txt', 'content'],
-					['GET https://localhost/index.txt', "test.txt 1 1"]
-				])
+					['GET https://localhost/index.txt', 'test.txt 1 1'],
+				]),
 			})
 			await db.connect()
 			const results = []
@@ -232,7 +231,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should call connect when not connected', async () => {
 			const bdb = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([])
+				fetchFn: mockFetch([]),
 			})
 			bdb.connected = false
 			await bdb.requireConnected()
@@ -242,9 +241,11 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should error if connection fails', async () => {
 			const bdb = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([])
+				fetchFn: mockFetch([]),
 			})
-			bdb.connect = async () => { bdb.connected = false }
+			bdb.connect = async () => {
+				bdb.connected = false
+			}
 			await assert.rejects(() => bdb.requireConnected(), /DB is not connected/)
 		})
 	})
@@ -253,7 +254,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should load from network if not cached', async () => {
 			const bdb = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([['GET https://localhost/cached.txt', 'cached data']])
+				fetchFn: mockFetch([['GET https://localhost/cached.txt', 'cached data']]),
 			})
 			await bdb.connect()
 			const result = await bdb.get('cached.txt')
@@ -265,7 +266,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should store value and update meta', async () => {
 			const bdb = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([])
+				fetchFn: mockFetch([]),
 			})
 			await bdb.set('new.txt', 'hello')
 			assert.strictEqual(bdb.data.get('new.txt'), 'hello')
@@ -281,14 +282,17 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 				host: 'https://localhost',
 				fetchFn: mockFetch([
 					['GET https://localhost/remote.txt', 'data'],
-					['HEAD https://localhost/remote.txt', [200, { 'content-length': '4', 'last-modified': 'Fri, 27 Oct 2015 00:00:00 GMT' }]]
-				])
+					[
+						'HEAD https://localhost/remote.txt',
+						[200, { 'content-length': '4', 'last-modified': 'Fri, 27 Oct 2015 00:00:00 GMT' }],
+					],
+				]),
 			})
 			await bdb.connect()
 			const stat = await bdb.stat('remote.txt')
 			assert.ok(stat.isFile)
 			assert.strictEqual(stat.size, 4)
-			assert.strictEqual(stat.mtime.toISOString(), "2015-10-27T00:00:00.000Z")
+			assert.strictEqual(stat.mtime.toISOString(), '2015-10-27T00:00:00.000Z')
 		})
 	})
 
@@ -330,7 +334,11 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		})
 
 		it.todo('should resolve complex path with ./ and ../', async () => {
-			const result = await db.resolve('http://localhost/api/v1/', './users/../posts/', 'latest.json')
+			const result = await db.resolve(
+				'http://localhost/api/v1/',
+				'./users/../posts/',
+				'latest.json',
+			)
 			assert.strictEqual(result, '/api/v1/posts/latest.json')
 		})
 	})
@@ -339,7 +347,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should fetch document successfully', async () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([['GET https://localhost/doc.json', { content: 'test' }]])
+				fetchFn: mockFetch([['GET https://localhost/doc.json', { content: 'test' }]]),
 			})
 			await db.connect()
 			const resp = await db.fetchRemote('doc.json')
@@ -350,7 +358,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should retry extensions when content-type not recognised', async () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([['GET https://localhost/data.json', { hello: 'world' }]])
+				fetchFn: mockFetch([['GET https://localhost/data.json', { hello: 'world' }]]),
 			})
 			await db.connect()
 			const resp = await db.fetchRemote('data')
@@ -361,12 +369,13 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should throw HTTPError on timeout', async () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: () => new Promise((_, reject) => setTimeout(() => reject(new HTTPError('timeout', 408)), 50))
+				fetchFn: () =>
+					new Promise((_, reject) => setTimeout(() => reject(new HTTPError('timeout', 408)), 50)),
 			})
 			db.timeout = 10
 			await assert.rejects(
 				() => db.fetchRemote('slow.json'),
-				err => err instanceof HTTPError && err.status === 408
+				(err) => err instanceof HTTPError && err.status === 408,
 			)
 		})
 
@@ -374,9 +383,14 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 			const err = new Error('network failure')
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: async () => { throw err }
+				fetchFn: async () => {
+					throw err
+				},
 			})
-			await assert.rejects(() => db.fetchRemote('oops.json'), e => e === err)
+			await assert.rejects(
+				() => db.fetchRemote('oops.json'),
+				(e) => e === err,
+			)
 		})
 	})
 
@@ -384,7 +398,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should load document successfully', async () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([['GET https://localhost/doc.json', { data: 123 }]])
+				fetchFn: mockFetch([['GET https://localhost/doc.json', { data: 123 }]]),
 			})
 			await db.connect()
 			const result = await db.loadDocument('doc.json')
@@ -394,7 +408,9 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should return default when fetch fails', async () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: async () => { throw new Error('network error') }
+				fetchFn: async () => {
+					throw new Error('network error')
+				},
 			})
 			await db.connect()
 			const def = { fallback: true }
@@ -409,12 +425,15 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
 				fetchFn: mockFetch([
-					["POST https://localhost/save.json", (data) => {
-						value = data
-						return true
-					}],
-					["GET https://localhost", value],
-				])
+					[
+						'POST https://localhost/save.json',
+						(data) => {
+							value = data
+							return true
+						},
+					],
+					['GET https://localhost', value],
+				]),
 			})
 			await db.connect()
 			const result = await db.saveDocument('save.json', { foo: 'bar' })
@@ -429,8 +448,8 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 				host: 'https://localhost',
 				fetchFn: async () => ({
 					ok: true,
-					json: async () => ({ written: true })
-				})
+					json: async () => ({ written: true }),
+				}),
 			})
 			const result = await db.writeDocument('file.json', { a: 1 })
 			assert.deepStrictEqual(result, { written: true })
@@ -441,7 +460,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should DELETE and return true on success', async () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: async () => ({ ok: true })
+				fetchFn: async () => ({ ok: true }),
 			})
 			const result = await db.dropDocument('remove.json')
 			assert.strictEqual(result, true)
@@ -454,8 +473,8 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 				host: 'https://localhost',
 				fetchFn: mockFetch([
 					['GET https://localhost/known.txt', 'data'],
-					['GET https://localhost/another.json', { x: 1 }]
-				])
+					['GET https://localhost/another.json', { x: 1 }],
+				]),
 			})
 			await db.connect()
 			const accesses = []
@@ -464,8 +483,8 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 				return true
 			}
 			await db.push()
-			assert.ok(accesses.some(a => a.uri === 'known.txt' && a.level === 'w'))
-			assert.ok(accesses.some(a => a.uri === 'another.json' && a.level === 'w'))
+			assert.ok(accesses.some((a) => a.uri === 'known.txt' && a.level === 'w'))
+			assert.ok(accesses.some((a) => a.uri === 'another.json' && a.level === 'w'))
 		})
 	})
 
@@ -484,7 +503,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 				fetchFn: mockFetch([
 					['GET https://localhost/file.txt', 'data'],
 					['GET https://localhost/index.txt', 'file.txt 1 1'],
-				])
+				]),
 			})
 			await db.connect()
 			const entries = []
@@ -517,7 +536,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 					['GET https://localhost/_.json', { global: 'root' }],
 					['GET https://localhost/dir1/_.json', { a: 1 }],
 					['GET https://localhost/dir1/dir2/_.json', { b: 2 }],
-				])
+				]),
 			})
 			await db.connect()
 			const result = await db.getInheritance('/dir1/dir2/file.json')
@@ -533,12 +552,18 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 					['GET https://localhost/_/currencies.json', [200, ['BTC']]],
 					['GET https://localhost/dir1/_/currencies.json', [200, ['BTC', 'UAH']]],
 					['GET https://localhost/dir1/dir2/_/currencies.json', [200, ['USD']]],
-					['GET https://localhost/index.txtl', [200, [
-						"_/currencies.json 1 1",
-						"dir1/_/currencies.json 1 1",
-						"dir1/dir2/_/currencies.json 1 1",
-					].join("\n")]],
-				])
+					[
+						'GET https://localhost/index.txtl',
+						[
+							200,
+							[
+								'_/currencies.json 1 1',
+								'dir1/_/currencies.json 1 1',
+								'dir1/dir2/_/currencies.json 1 1',
+							].join('\n'),
+						],
+					],
+				]),
 			})
 			await db.connect()
 			const r1 = await db.getGlobals('dir1/dir2/file.txt')
@@ -558,8 +583,8 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 				fetchFn: mockFetch([
 					['GET https://localhost/_.json', { g: 1 }],
 					['GET https://localhost/doc.json', { a: 2 }],
-					['GET https://localhost/index.txt', "_.json 1 1\ndoc.json 2 2"]
-				])
+					['GET https://localhost/index.txt', '_.json 1 1\ndoc.json 2 2'],
+				]),
 			})
 			await db.connect()
 			const result = await db.fetch('doc.json')
@@ -572,7 +597,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 				fetchFn: mockFetch([
 					['GET https://localhost/ref.json', { prop: { sub: 'value' } }],
 					['GET https://localhost/data.json', { key: '$ref:ref.json#prop/sub' }],
-				])
+				]),
 			})
 			await db.connect()
 			const result = await db.fetch('data.json')
@@ -582,7 +607,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should return default when document missing', async () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([])
+				fetchFn: mockFetch([]),
 			})
 			const opts = new DB.FetchOptions({ defaultValue: { foo: 'bar' } })
 			const result = await db.fetch('missing.json', opts)
@@ -594,9 +619,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should resolve simple $ref string', async () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([
-					['GET https://localhost/ref.json', { val: 42 }]
-				])
+				fetchFn: mockFetch([['GET https://localhost/ref.json', { val: 42 }]]),
 			})
 			await db.connect()
 			const data = { key: '$ref:ref.json' }
@@ -607,9 +630,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 		it('should resolve fragment reference', async () => {
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([
-					['GET https://localhost/ref.json', { obj: { inner: 'found' } }]
-				])
+				fetchFn: mockFetch([['GET https://localhost/ref.json', { obj: { inner: 'found' } }]]),
 			})
 			await db.connect()
 			const data = { k: '$ref:ref.json#obj/inner' }
@@ -619,7 +640,7 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 
 		it('should keep original when reference missing', async () => {
 			const db = new DBBrowser({
-				host: 'https://localhost'
+				host: 'https://localhost',
 			})
 			const data = { k: '$ref:missing.json' }
 			const result = await db.resolveReferences(data)

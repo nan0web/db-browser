@@ -76,7 +76,9 @@ export default class BrowserDriver extends DBDriverProtocol {
 	 */
 	_getStore(mode = 'readonly') {
 		if (!this.db) throw new Error('Database not connected')
-		return this.db.transaction(this.STORE_NAME, /** @type {IDBTransactionMode} */ (mode)).objectStore(this.STORE_NAME)
+		return this.db
+			.transaction(this.STORE_NAME, /** @type {IDBTransactionMode} */ (mode))
+			.objectStore(this.STORE_NAME)
 	}
 
 	/**
@@ -85,7 +87,9 @@ export default class BrowserDriver extends DBDriverProtocol {
 	 */
 	_getCacheStore(mode = 'readonly') {
 		if (!this.db) throw new Error('Database not connected')
-		return this.db.transaction(this.CACHE_STORE, /** @type {IDBTransactionMode} */ (mode)).objectStore(this.CACHE_STORE)
+		return this.db
+			.transaction(this.CACHE_STORE, /** @type {IDBTransactionMode} */ (mode))
+			.objectStore(this.CACHE_STORE)
 	}
 
 	/**
@@ -138,7 +142,7 @@ export default class BrowserDriver extends DBDriverProtocol {
 	 * @returns {Promise<boolean>}
 	 */
 	async append(uri, chunk) {
-		const current = await this.read(uri) || ''
+		const current = (await this.read(uri)) || ''
 		const updated = current + chunk
 		return this.write(uri, updated)
 	}
@@ -157,7 +161,7 @@ export default class BrowserDriver extends DBDriverProtocol {
 		const stat = new DocumentStat({
 			size,
 			mtimeMs: Date.now(),
-			isFile: true
+			isFile: true,
 		})
 
 		this._metaCache.set(uri, stat)
