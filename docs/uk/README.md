@@ -2,9 +2,9 @@
 
 Клієнт бази даних для браузера як розширення @nan0web/db
 
-| Назва пакету                                                  | [Статус](https://github.com/nan0web/monorepo/blob/main/system.md#написання-сценаріїв) | Документація                                                                                                                                                        | Покриття тестами | Фічі                               | Версія npm |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------- | ---------- |
-| [@nan0web/db-browser](https://github.com/nan0web/db-browser/) | 🟢 `95.5%`                                                                            | 🧪 [English 🏴󠁧󠁢󠁥󠁮󠁧󠁿](https://github.com/nan0web/db-browser/blob/main/README.md)<br />[Українською 🇺🇦](https://github.com/nan0web/db-browser/blob/main/docs/uk/README.md) | 🟡 `74.2%`       | ✅ d.ts 📜 system.md 🕹️ playground | —          |
+> 🇬🇧 [English](../../README.md) | 🇺🇦 [Українська](./README.md)
+
+<!-- %PACKAGE_STATUS% -->
 
 ## Опис
 
@@ -15,6 +15,8 @@
 - `DBBrowser` — успадковує DB і додає специфічні для браузера можливості,
   такі як віддалене отримання та збереження через стандартні HTTP‑методи
   (GET, POST, PUT, DELETE).
+
+**v1.1.0** — UDA 2.0 Інтеграція: ланцюг резерву, події зміни, проактивне розширення `.json`.
 
 Цей пакет ідеально підходить для розробки веб‑додатків, які потребують
 віддаленого доступу до даних з підтримкою успадкування, посилань та індексування каталогів.
@@ -42,7 +44,7 @@ yarn add @nan0web/db-browser
 ### Отримання документів
 
 DBBrowser підтримує отримання документів з віддалених серверів із повним
-розв’язанням URI.
+розв'язанням URI.
 
 Як отримати документ?
 
@@ -121,7 +123,7 @@ console.info('Drop result:', result) // ← Drop result: true
 
 ### Читання каталогу
 
-DBBrowser підтримує читання вмісту каталогів та розв’язання відносних шляхів.
+DBBrowser підтримує читання вмісту каталогів та розв'язання відносних шляхів.
 
 Як отримати вміст каталогу?
 
@@ -181,6 +183,54 @@ console.info('Subset instanceof DBBrowser:', subDB instanceof DBBrowser)
 // Subset instanceof DBBrowser: true
 ```
 
+### Ланцюг резерву (UDA 2.0)
+
+Підʼєднайте вторинну базу даних як резервне джерело.
+Якщо документ не знайдено в основній БД, автоматично запитується резервна.
+
+Як використовувати ланцюг резерву?
+
+```js
+import DBBrowser from '@nan0web/db-browser'
+const primary = new DBBrowser({
+  host: 'https://api.example.com',
+  root: '/data/',
+})
+const fallback = new DBBrowser({
+  host: 'https://cdn.example.com',
+  root: '/data/',
+})
+
+primary.attach(fallback)
+const users = await primary.fetch('users.json')
+console.info('Отримано через ланцюг:', users)
+// Отримано через ланцюг: [{...}, {...}]
+```
+
+### Події зміни (UDA 2.0)
+
+Підписуйтесь на зміни документів при збереженні та видаленні.
+
+Як слухати події зміни?
+
+```js
+import DBBrowser from '@nan0web/db-browser'
+const db = new DBBrowser({
+  host: 'https://api.example.com',
+  root: '/data/',
+})
+
+const events = []
+db.on('change', (event) => events.push(event))
+
+await db.saveDocument('new-file.json', { test: 'value' })
+await db.dropDocument('new-file.json')
+
+console.info('Подій:', events.length) // ← Подій: 2
+// events[0].type === 'save'
+// events[1].type === 'drop'
+```
+
 ## API
 
 ### DBBrowser
@@ -199,26 +249,26 @@ console.info('Subset instanceof DBBrowser:', subDB instanceof DBBrowser)
 - **Методи**
   - `ensureAccess(uri, level)` – Перевіряє режим доступу для URI.
   - `fetchRemote(uri, requestInit)` – Виконує віддалений fetch з обробкою тайм‑ауту.
+  - `_fetchPrimary(uri)` – Основна логіка fetch (v1.1.0: перейменовано з `fetch()`).
   - `load()` – Завантажує кореневий індекс.
   - `statDocument(uri)` – Отримує метадані через HEAD‑запит.
-  - `loadDocument(uri, defaultValue)` – Завантажує та парсить документ.
-  - `saveDocument(uri, document)` – Створює новий файл за допомогою POST.
-  - `writeDocument(uri, document)` – Оновлює/перезаписує файл за допомогою PUT.
-  - `dropDocument(uri)` – Видаляє файл за допомогою DELETE.
+  - `loadDocument(uri, defaultValue)` – Завантажує та парсить документ (JSON + текст).
+  - `saveDocument(uri, document)` – Створює новий файл через POST. Емітить подію `change`.
+  - `writeDocument(uri, document)` – Оновлює/перезаписує файл через PUT.
+  - `dropDocument(uri)` – Видаляє файл через DELETE. Емітить подію `change`.
   - `extract(uri)` – Створює нову під‑БД, коренем якої є зазначений URI.
   - `readDir(uri)` – Читає вміст каталогу з підтримкою індексу.
+  - `attach(db)` – Підʼєднує резервну базу даних (UDA 2.0).
+  - `on('change', fn)` – Підписка на події зміни документів (UDA 2.0).
   - `static from(input)` – Створює інстанцію або повертає вже існуючу.
 
-Всі експортовані класи повинні проходити базові тести, щоб гарантувати
-коректність прикладів API.
-
-## JavaScript
+## Java•Script
 
 Використовує `.d.ts` файли для автодоповнення.
 
 ## CLI Playground
 
-Як запустити демо‑скрипт DBBrowser?
+Як запустити демо DBBrowser?
 
 ```bash
 git clone https://github.com/nan0web/db-browser.git
@@ -227,10 +277,10 @@ npm install
 npm run play
 ```
 
-## Внесення внесків
+## Внесок
 
-Як допомогти? – [дивіться тут](./CONTRIBUTING.md)
+Як допомогти? – [дивіться тут](../../CONTRIBUTING.md)
 
 ## Ліцензія
 
-Як перевірити ліцензію ISC? – [дивіться тут](./LICENSE)
+Як перевірити ліцензію ISC? – [дивіться тут](../../LICENSE)

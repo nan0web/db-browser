@@ -7,9 +7,9 @@
  *          The running server, its actual port, and a ready‑to‑use base URL.
  */
 export default function startServer(files: Record<string, unknown>, options?: {
-    port?: number | undefined;
-} | undefined): Promise<{
-    server: import('node:http').Server;
+    port?: number;
+}): Promise<{
+    server: import("node:http").Server;
     port: number;
     baseUrl: string;
 }>;

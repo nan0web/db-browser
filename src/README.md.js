@@ -97,6 +97,8 @@ function testRender() {
 	 *
 	 * Browser Database client as extension of @nan0web/db
 	 *
+	 * > 🇬🇧 [English](./README.md) | 🇺🇦 [Українська](./docs/uk/README.md)
+	 *
 	 * <!-- %PACKAGE_STATUS% -->
 	 *
 	 * ## Description
@@ -107,6 +109,8 @@ function testRender() {
 	 *
 	 * - `DBBrowser` — extends DB with browser-specific features like remote fetching and saving
 	 *   via standard HTTP methods (GET, POST, PUT, DELETE).
+	 *
+	 * **v1.1.0** — UDA 2.0 Integration: fallback chain, change events, proactive `.json` extension.
 	 *
 	 * This package is ideal for building browser-based applications that require remote data
 	 * fetching with support for inheritance, references, and directory indexing.
@@ -309,6 +313,56 @@ function testRender() {
 
 	/**
 	 * @docs
+	 * ### Fallback Chain (UDA 2.0)
+	 *
+	 * Attach a secondary database as a fallback source.
+	 * When a document is not found in the primary DB, the fallback is queried automatically.
+	 */
+	it('How to use fallback chain?', async () => {
+		//import DBBrowser from "@nan0web/db-browser"
+		const primary = new DBBrowser({
+			host: 'https://api.example.com',
+			root: '/data/',
+		})
+		const fallback = new DBBrowser({
+			host: 'https://api.example.com',
+			root: '/data/',
+		})
+
+		primary.attach(fallback)
+		const users = await primary.fetch('users.json')
+		console.info('Fetched via chain:', users)
+		// Fetched via chain: [{...}, {...}]
+		assert.ok(Array.isArray(console.output()[0][2]))
+	})
+
+	/**
+	 * @docs
+	 * ### Change Events (UDA 2.0)
+	 *
+	 * Listen for document changes on save and drop operations.
+	 */
+	it('How to listen for change events?', async () => {
+		//import DBBrowser from "@nan0web/db-browser"
+		const db = new DBBrowser({
+			host: 'https://api.example.com',
+			root: '/data/',
+		})
+
+		const events = []
+		db.on('change', (event) => events.push(event))
+
+		await db.saveDocument('new-file.json', { test: 'value' })
+		await db.dropDocument('new-file.json')
+
+		console.info('Events:', events.length) // ← Events: 2
+		assert.equal(events.length, 2)
+		assert.equal(events[0].type, 'save')
+		assert.equal(events[1].type, 'drop')
+	})
+
+	/**
+	 * @docs
 	 * ## API
 	 *
 	 * ### DBBrowser
@@ -326,14 +380,17 @@ function testRender() {
 	 * * **Methods**
 	 *   * `ensureAccess(uri, level)` – Validates access mode for a URI.
 	 *   * `fetchRemote(uri, requestInit)` – Performs remote fetch with timeout handling.
+	 *   * `_fetchPrimary(uri)` – Primary fetch logic (v1.1.0: renamed from `fetch()`).
 	 *   * `load()` – Loads the root index.
 	 *   * `statDocument(uri)` – Fetches metadata via HEAD request.
-	 *   * `loadDocument(uri, defaultValue)` – Fetches and parses a document.
-	 *   * `saveDocument(uri, document)` – Saves a new file using POST.
+	 *   * `loadDocument(uri, defaultValue)` – Fetches and parses a document (JSON + text).
+	 *   * `saveDocument(uri, document)` – Saves a new file using POST. Emits `change` event.
 	 *   * `writeDocument(uri, document)` – Updates/overwrites file using PUT.
-	 *   * `dropDocument(uri)` – Deletes a file using DELETE.
+	 *   * `dropDocument(uri)` – Deletes a file using DELETE. Emits `change` event.
 	 *   * `extract(uri)` – Creates a new DB subset rooted at the URI.
 	 *   * `readDir(uri)` – Reads directory contents with index loading support.
+	 *   * `attach(db)` – Attaches a fallback database (UDA 2.0).
+	 *   * `on('change', fn)` – Subscribes to document change events (UDA 2.0).
 	 *   * `static from(input)` – Instantiates or returns existing DBBrowser instance.
 	 */
 	it('All exported classes should pass basic test to ensure API examples work', () => {

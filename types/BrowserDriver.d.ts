@@ -27,12 +27,12 @@ export default class BrowserDriver extends DBDriverProtocol {
      * @param {'readonly'|'readwrite'} [mode='readonly']
      * @returns {IDBObjectStore}
      */
-    _getStore(mode?: "readonly" | "readwrite" | undefined): IDBObjectStore;
+    _getStore(mode?: "readonly" | "readwrite"): IDBObjectStore;
     /**
      * @param {'readonly'|'readwrite'} [mode='readonly']
      * @returns {IDBObjectStore}
      */
-    _getCacheStore(mode?: "readonly" | "readwrite" | undefined): IDBObjectStore;
+    _getCacheStore(mode?: "readonly" | "readwrite"): IDBObjectStore;
     /**
      * Reads a document from the store (with in‑memory cache fallback).
      * @param {string} uri

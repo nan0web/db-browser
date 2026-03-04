@@ -163,16 +163,13 @@ describe('DBBrowser', () => {
 	describe('fetch', () => {
 		it('should not go into infinite loop', async () => {
 			const db = new DBBrowser({
-				cwd: 'http://localhost',
+				host: 'http://localhost',
 				root: '/',
 				timeout: 99,
-				fetchFn: mockFetch(
-					[
-						['GET /_.json', { nav: [{ href: 'index.html', title: 'Home' }] }],
-						['GET /typography.json', { $content: [{ h1: 'Typography' }] }],
-					],
-					'http://localhost',
-				),
+				fetchFn: mockFetch([
+					['GET http://localhost/_.json', { nav: [{ href: 'index.html', title: 'Home' }] }],
+					['GET http://localhost/typography.json', { $content: [{ h1: 'Typography' }] }],
+				]),
 			})
 			await db.connect()
 			const result = await db.fetch('typography.json')
@@ -274,7 +271,8 @@ describe('DBBrowser', () => {
 			assert.equal(response.ok, true)
 			assert.equal(response.status, 200)
 			assert.deepEqual(await response.json(), { nav: [{ href: '/', title: 'Home' }] })
-			assert.ok(callCount >= 2, 'Should have retried at least once')
+			// With proactive .json, we try _.json first — so may need only 1 call
+			assert.ok(callCount >= 1, 'Should have called fetch at least once')
 		})
 	})
 
@@ -337,6 +335,7 @@ describe('DBBrowser', () => {
 
 		it('should save document with POST request', async () => {
 			const db = new DBBrowser({
+				host: 'http://localhost',
 				fetchFn: async (url, init) => {
 					assert.equal(init.method, 'POST')
 					assert.equal(init.headers['Content-Type'], 'application/json')
@@ -354,6 +353,7 @@ describe('DBBrowser', () => {
 
 		it('should throw error on failed save', async () => {
 			const db = new DBBrowser({
+				host: 'http://localhost',
 				fetchFn: async (url, init) => {
 					return {
 						ok: false,
@@ -432,16 +432,13 @@ describe('DBBrowser', () => {
 	describe('statDocument', () => {
 		it('should load document without index', async () => {
 			const db = new DBBrowser({ cwd: 'http://localhost', root: '/', timeout: 99 })
-			db.fetchFn = mockFetch(
+			db.fetchFn = mockFetch([
 				[
-					[
-						'HEAD /typography.json',
-						{ 'Content-Length': '123', 'Last-Modified': 'Wed, 21 Oct 2015 07:28:00 GMT' },
-					],
-					['GET /typography.json', { $content: [{ h1: 'Typography' }] }],
+					'HEAD http://localhost/typography.json',
+					{ 'Content-Length': '123', 'Last-Modified': 'Wed, 21 Oct 2015 07:28:00 GMT' },
 				],
-				'http://localhost',
-			)
+				['GET http://localhost/typography.json', { $content: [{ h1: 'Typography' }] }],
+			])
 			const stat = await db.statDocument('typography.json')
 			assert.ok(stat.isFile)
 			assert.equal(stat.size, 123)
@@ -453,19 +450,106 @@ describe('DBBrowser', () => {
 				cwd: 'http://localhost',
 				root: '/',
 				timeout: 99,
-				fetchFn: mockFetch(
-					[
-						['HEAD /typography.json', { 'Content-Length': '123' }],
-						['GET /typography.json', { $content: [{ h1: 'Typography' }] }],
-					],
-					'http://localhost',
-				),
+				fetchFn: mockFetch([
+					['HEAD http://localhost/typography.json', { 'Content-Length': '123' }],
+					['GET http://localhost/typography.json', { $content: [{ h1: 'Typography' }] }],
+				]),
 			})
 			await db.connect()
 			const stat = await db.statDocument('typography.json')
 			assert.ok(stat.isFile)
 			assert.equal(stat.size, 123)
 			assert.ok(stat.mtimeMs > 0)
+		})
+	})
+
+	describe('UDA 2.0: change events', () => {
+		it('should emit change event on saveDocument', async () => {
+			const events = []
+			const db = new DBBrowser({
+				host: 'http://localhost',
+				fetchFn: async (url, init) => ({
+					ok: true,
+					status: 200,
+					headers: new Map(),
+					json: async () => ({ saved: true }),
+				}),
+			})
+			db.on('change', (e) => events.push(e))
+			await db.saveDocument('doc.json', { hello: 'world' })
+			assert.equal(events.length, 1)
+			assert.equal(events[0].type, 'save')
+			assert.ok(events[0].uri.endsWith('doc.json'))
+			assert.deepEqual(events[0].data, { hello: 'world' })
+		})
+
+		it('should emit change event on dropDocument', async () => {
+			const events = []
+			const db = new DBBrowser({
+				host: 'http://localhost',
+				fetchFn: async () => ({ ok: true, status: 200, headers: new Map() }),
+			})
+			db.on('change', (e) => events.push(e))
+			await db.dropDocument('doc.json')
+			assert.equal(events.length, 1)
+			assert.equal(events[0].type, 'drop')
+			assert.ok(events[0].uri.endsWith('doc.json'))
+		})
+
+		it('should NOT emit change event on failed save', async () => {
+			const events = []
+			const db = new DBBrowser({
+				host: 'http://localhost',
+				fetchFn: async () => ({
+					ok: false,
+					status: 500,
+					headers: new Map(),
+					json: async () => ({ error: 'Server error' }),
+				}),
+			})
+			db.on('change', (e) => events.push(e))
+			await assert.rejects(async () => await db.saveDocument('doc.json', { data: true }), HTTPError)
+			assert.equal(events.length, 0)
+		})
+	})
+
+	describe('UDA 2.0: _fetchPrimary delegation', () => {
+		it('should use _fetchPrimary via base fetch()', async () => {
+			const db = new DBBrowser({
+				host: 'http://localhost',
+				fetchFn: mockFetch([['GET http://localhost/data.json', { content: 'primary' }]]),
+			})
+			await db.connect()
+			const result = await db.fetch('data.json')
+			assert.deepEqual(result, { content: 'primary' })
+		})
+
+		it('should return undefined from _fetchPrimary when not found', async () => {
+			const db = new DBBrowser({
+				host: 'http://localhost',
+				fetchFn: mockFetch([]),
+			})
+			await db.connect()
+			const result = await db._fetchPrimary('missing.json')
+			assert.equal(result, undefined)
+		})
+	})
+
+	describe('UDA 2.0: fallback chain', () => {
+		it('should fallback to attached DB when primary returns nothing', async () => {
+			const primary = new DBBrowser({
+				host: 'http://primary',
+				fetchFn: mockFetch([]),
+			})
+			const fallback = new DBBrowser({
+				host: 'http://fallback',
+				fetchFn: mockFetch([['GET http://fallback/data.json', { from: 'fallback' }]]),
+			})
+			primary.attach(fallback)
+			await primary.connect()
+			await fallback.connect()
+			const result = await primary.fetch('data.json')
+			assert.deepEqual(result, { from: 'fallback' })
 		})
 	})
 })

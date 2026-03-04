@@ -8,7 +8,7 @@
  */
 export default class DBBrowser extends DB {
     /** @type {Function | null} */
-    static "__#5@#FetchFn": Function | null;
+    static "__#private@#FetchFn": Function | null;
     /** @type {Function} */
     static get FetchFn(): Function;
     /**
@@ -35,26 +35,30 @@ export default class DBBrowser extends DB {
         fetchFn?: Function | undefined;
         root?: string | undefined;
         console?: Console | NoConsole | undefined;
-    } | undefined);
+    });
     /** @type {string} */
     host: string;
     /** @type {number} */
     timeout: number;
     /** @type {Function} */
     fetchFn: Function;
+    store: BrowserStore;
     /**
      * Validates access level.
      * @param {string} uri
      * @param {string} [level='r']
      * @returns {Promise<void>}
      */
-    ensureAccess(uri: string, level?: string | undefined): Promise<void>;
+    ensureAccess(uri: string, level?: string): Promise<void>;
     /**
-     * Fetch document – returns parsed JSON when possible, otherwise raw text.
+     * Primary fetch logic — override for browser HTTP fetching.
+     * Base `DB.fetch()` delegates here, providing mount routing,
+     * fallback chain, and model hydration around this method.
+     *
      * @param {string} uri
      * @returns {Promise<any>}
      */
-    fetch(uri: string): Promise<any>;
+    _fetchPrimary(uri: string): Promise<any>;
     /**
      * Performs fetch with timeout and fallback.
      *
@@ -65,7 +69,7 @@ export default class DBBrowser extends DB {
      * @param {Set<string>} [visited=new Set()] recursion guard
      * @returns {Promise<Response>}
      */
-    fetchRemote(uri: string, requestInit?: object, visited?: Set<string> | undefined): Promise<Response>;
+    fetchRemote(uri: string, requestInit?: object, visited?: Set<string>): Promise<Response>;
     /**
      * Throws formatted HTTPError.
      * @param {Response} response
@@ -110,6 +114,11 @@ export default class DBBrowser extends DB {
      */
     dropDocument(uri: string): Promise<boolean>;
     /**
+     * Synchronizes offline changes with the server.
+     * @returns {Promise<number>} Number of synchronized documents
+     */
+    sync(): Promise<number>;
+    /**
      * Creates DB subset.
      *
      * The original DBBrowser stores `root` with a leading slash (e.g. "/data/").
@@ -122,5 +131,6 @@ export default class DBBrowser extends DB {
     extract(uri: string): DBBrowser;
 }
 import DB from '@nan0web/db';
+import BrowserStore from './BrowserStore.js';
 import { DocumentStat } from '@nan0web/db';
 import { NoConsole } from '@nan0web/log';

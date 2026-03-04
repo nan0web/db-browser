@@ -14,7 +14,7 @@ export function createDB(opts?: {
     host?: string | undefined;
     root?: string | undefined;
     timeout?: number | undefined;
-} | undefined): MockDBBrowser;
+}): MockDBBrowser;
 export class MockDBBrowser extends DBBrowser {
     /**
      * @param {object} [input]
@@ -36,7 +36,7 @@ export class MockDBBrowser extends DBBrowser {
         root?: string | undefined;
         console?: Console | NoConsole | undefined;
         fetchRules?: any[] | undefined;
-    } | undefined);
+    });
     fetchRules: any[];
     /**
      * Creates mock fetch function from fetchRules

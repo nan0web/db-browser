@@ -2,6 +2,7 @@ import DB, { DocumentStat, DocumentEntry } from '@nan0web/db'
 import { HTTPError } from '@nan0web/http'
 import { NoConsole } from '@nan0web/log'
 import BrowserDirectory from './Directory.js'
+import BrowserStore from './BrowserStore.js'
 import { resolveSync } from './utils/resolveSync.js'
 
 class Headers extends Map {
@@ -71,6 +72,7 @@ export default class DBBrowser extends DB {
 		this.host = String(host)
 		this.timeout = Number(timeout)
 		this.fetchFn = fetchFn
+		this.store = new BrowserStore()
 	}
 
 	/**
@@ -95,21 +97,34 @@ export default class DBBrowser extends DB {
 	}
 
 	/**
-	 * Fetch document – returns parsed JSON when possible, otherwise raw text.
+	 * Primary fetch logic — override for browser HTTP fetching.
+	 * Base `DB.fetch()` delegates here, providing mount routing,
+	 * fallback chain, and model hydration around this method.
+	 *
 	 * @param {string} uri
 	 * @returns {Promise<any>}
 	 */
-	async fetch(uri) {
+	async _fetchPrimary(uri) {
 		try {
 			const response = await this.fetchRemote(uri)
-			// Prefer JSON, fall back to plain text for non‑JSON payloads (e.g., index.txtl)
-			try {
-				return await response.json()
-			} catch {
-				return await response.text()
+			if (!response.ok) {
+				const cached = await this.store.get(uri)
+				if (cached) return cached.data
+				return undefined
 			}
+			// Prefer JSON, fall back to plain text for non‑JSON payloads (e.g., index.txtl)
+			let data
+			try {
+				data = await response.json()
+			} catch {
+				data = await response.text()
+			}
+			this.store.put(uri, data, { unsynced: false }).catch(() => {})
+			return data
 		} catch (/** @type {any} */ err) {
-			return { error: 'Not found' }
+			const cached = await this.store.get(uri)
+			if (cached) return cached.data
+			return undefined
 		}
 	}
 
@@ -124,15 +139,19 @@ export default class DBBrowser extends DB {
 	 * @returns {Promise<Response>}
 	 */
 	async fetchRemote(uri, requestInit = {}, visited = new Set()) {
+		// Proactive .json extension: avoid 404/403 console noise for extension-less URIs
+		if (!this.extname(uri) && !visited.has(uri) && this.Directory.DATA_EXTNAMES.includes('.json')) {
+			visited.add(uri)
+			const extended = uri + '.json'
+			const response = await this.fetchRemote(extended, requestInit, visited)
+			if (response.ok) return response
+			// fallback to original URI if .json doesn't exist
+		}
+
 		const absUri = await this.resolve(uri)
 		const isRemote = this.isRemote(absUri)
 		const baseHref = isRemote ? '' : this.cwd
 		let href = isRemote ? absUri : new URL(absUri, baseHref).href
-
-		if (this.fetchFn.name === 'mockFetch') {
-			const u = new URL(href)
-			href = u.pathname + u.search + u.hash
-		}
 
 		const controller = new AbortController()
 		const timeoutId = setTimeout(() => controller.abort(), this.timeout)
@@ -203,12 +222,7 @@ export default class DBBrowser extends DB {
 	 * @returns {Promise<DocumentStat>}
 	 */
 	async statDocument(uri) {
-		const absUri = await this.resolve(uri)
-		const isRemote = this.isRemote(absUri)
-		const baseHref = isRemote ? '' : this.cwd
-		let href = isRemote ? absUri : new URL(absUri, baseHref).href
-
-		const response = await this.fetchFn(href, { method: 'HEAD' })
+		const response = await this.fetchRemote(uri, { method: 'HEAD' })
 		if (404 === response.status) return new DocumentStat()
 
 		const hdrs = new Headers(response.headers ?? {})
@@ -235,11 +249,23 @@ export default class DBBrowser extends DB {
 			const response = await this.fetchRemote(uri)
 			if (!response.ok) {
 				this.console.warn(`Failed to load document: ${uri}`)
+				const cached = await this.store.get(uri)
+				if (cached) return cached.data
 				return defaultValue
 			}
-			return await response.json()
+			// Prefer JSON, fall back to plain text for non‑JSON payloads (e.g., index.txtl)
+			let data
+			try {
+				data = await response.json()
+			} catch {
+				data = await response.text()
+			}
+			this.store.put(uri, data, { unsynced: false }).catch(() => {})
+			return data
 		} catch (/** @type {any} */ err) {
 			this.console.warn(`Failed to load document: ${uri}`, err)
+			const cached = await this.store.get(uri)
+			if (cached) return cached.data
 			return defaultValue
 		}
 	}
@@ -252,16 +278,25 @@ export default class DBBrowser extends DB {
 	 */
 	async saveDocument(uri, document) {
 		await this.ensureAccess(uri, 'w')
-		const absUri = this.absolute(uri)
-		const response = await this.fetchFn(absUri, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(document),
-		})
-		if (!response.ok) {
-			await this.throwError(response, `Failed to save document: ${uri}`)
+		const absUri = await this.resolve(uri)
+		try {
+			const response = await this.fetchRemote(absUri, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(document),
+			})
+			if (!response.ok) {
+				await this.throwError(response, `Failed to save document: ${uri}`)
+			}
+			const result = await response.json()
+			this.store.put(uri, document, { unsynced: false }).catch(() => {})
+			this.emit('change', { uri, type: 'save', data: document })
+			return result
+		} catch (/** @type {any} */ err) {
+			if (err instanceof HTTPError && ![408, 502, 503, 504].includes(err.status)) throw err
+			await this.store.put(uri, document, { unsynced: true, method: 'POST' })
+			return document
 		}
-		return await response.json()
 	}
 
 	/**
@@ -273,24 +308,31 @@ export default class DBBrowser extends DB {
 	async writeDocument(uri, document) {
 		await this.ensureAccess(uri, 'w')
 		const absUri = await this.resolve(uri)
-		const response = await this.fetchRemote(absUri, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(document),
-		})
-		if (!response.ok) {
-			await this.throwError(response, `Failed to write document: ${uri}`)
-		}
-		/** @type {any} */
-		let result = true
 		try {
-			result = await response.json()
-		} catch {
+			const response = await this.fetchRemote(absUri, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(document),
+			})
+			if (!response.ok) {
+				await this.throwError(response, `Failed to write document: ${uri}`)
+			}
+			/** @type {any} */
+			let result = true
 			try {
-				result = await response.text()
-			} catch {}
+				result = await response.json()
+			} catch {
+				try {
+					result = await response.text()
+				} catch {}
+			}
+			this.store.put(uri, document, { unsynced: false }).catch(() => {})
+			return result
+		} catch (/** @type {any} */ err) {
+			if (err instanceof HTTPError && ![408, 502, 503, 504].includes(err.status)) throw err
+			await this.store.put(uri, document, { unsynced: true, method: 'PUT' })
+			return true
 		}
-		return result
 	}
 
 	/**
@@ -301,11 +343,43 @@ export default class DBBrowser extends DB {
 	async dropDocument(uri) {
 		await this.ensureAccess(uri, 'd')
 		const absUri = await this.resolve(uri)
-		const response = await this.fetchRemote(absUri, { method: 'DELETE' })
-		if (!response.ok) {
-			await this.throwError(response, `Failed to delete document: ${uri}`)
+		try {
+			const response = await this.fetchRemote(absUri, { method: 'DELETE' })
+			if (!response.ok) {
+				await this.throwError(response, `Failed to delete document: ${uri}`)
+			}
+			this.store.remove(uri).catch(() => {})
+			this.emit('change', { uri, type: 'drop' })
+			return true
+		} catch (/** @type {any} */ err) {
+			if (err instanceof HTTPError && ![408, 502, 503, 504].includes(err.status)) throw err
+			await this.store.put(uri, null, { unsynced: true, method: 'DELETE' })
+			return true
 		}
-		return true
+	}
+
+	/**
+	 * Synchronizes offline changes with the server.
+	 * @returns {Promise<number>} Number of synchronized documents
+	 */
+	async sync() {
+		const pending = await this.store.getAllUnsynced()
+		let syncedCount = 0
+		for (const item of pending) {
+			try {
+				if (item.method === 'DELETE') {
+					await this.dropDocument(item.uri)
+				} else if (item.method === 'PUT') {
+					await this.writeDocument(item.uri, item.data)
+				} else {
+					await this.saveDocument(item.uri, item.data)
+				}
+				syncedCount++
+			} catch (e) {
+				this.console.warn(`Failed to sync ${item.uri}:`, e)
+			}
+		}
+		return syncedCount
 	}
 
 	/**

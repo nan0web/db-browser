@@ -8,72 +8,20 @@
 - ~~HTTP 403 retry~~ — v1.0.2: `fetchRemote()` ретраїть на 403 (Apache directory listing), не лише 404
 - ~~knip + audit~~ — v1.0.2: `knip --production`, `pnpm audit --prod || true`, конвеєр `test:all`
 - ~~duplicate export fix~~ — v1.0.2: `resolveSync.js` — прибрано дублікат default export
+- ~~UDA 2.0 Integration~~ — v1.1.0: fallback chain, model hydration, mount routing, change events
+- ~~`_fetchPrimary()` delegation~~ — v1.1.0: base `DB.fetch()` тепер успадковується
+- ~~`emit('change')`~~ — v1.1.0: `saveDocument()` та `dropDocument()` тепер емітять change events
+- ~~Proactive `.json` extension~~ — v1.1.0: `fetchRemote()` уникає зайвих 404/403 у консолі
+- ~~`loadDocument()` text support~~ — v1.1.0: підтримка DirectoryIndex/txtl, а не лише JSON
+- ~~Playground UDA 2.0~~ — v1.1.0: оновлено `play/` — демонстрація fallback chain та change events
+- ~~Version bump~~ — v1.1.0 (breaking: `_fetchPrimary` повертає `undefined` замість `{ error }`)
 
-## Next: UDA 2.0 Integration (from `@nan0web/db` v1.2.2)
+## Next
 
-Base DB додав: fallback chain, model hydration, mount routing, watch/change events, fetchStream.
-DBBrowser **override'ить** `fetch()`, `saveDocument()`, `dropDocument()` без `super` — тому ці фічі обходяться.
+- [ ] Опублікувати `@nan0web/http-node` v1.0.2 (з `mockFetch` base support)
+- [ ] Вирішити 6 `TODO` тестів resolve у `DB.test.js`
+- [ ] Додати тести для model hydration та mount routing
+- [ ] Перевірити consumers на зміну з `{ error: 'Not found' }` → `undefined`
+- [ ] Додати UDA 2.0 приклади до README.md.js (fallback chain, change events)
 
-### Task 1: fetch() → super.fetch() delegation
-
-**Файл:** `src/DBBrowser.js`, метод `fetch()`
-
-**Проблема:** Поточна реалізація повністю обходить base `fetch()`, тому:
-
-- ❌ fallback chain не працює
-- ❌ model hydration не працює
-- ❌ mount routing не працює
-
-**Рішення:** Перейменувати поточний `fetch()` у `_fetchPrimary()` override, і нехай base `fetch()` делегує.
-
-**⚠️ Breaking change:** Повернення `undefined` замість `{ error: 'Not found' }` — перевірити consumers.
-
-### Task 2: emit('change') в saveDocument()
-
-**Файл:** `src/DBBrowser.js`, метод `saveDocument()`
-
-```js
-this.emit('change', { uri, type: 'save', data: document })
-```
-
-### Task 3: emit('change') в dropDocument()
-
-**Файл:** `src/DBBrowser.js`, метод `dropDocument()`
-
-```js
-this.emit('change', { uri, type: 'drop' })
-```
-
-### Task 4: Тести UDA 2.0
-
-- fallback chain
-- model hydration
-- change events від save/drop
-
-### Pre-existing Test Failures
-
-4 тести без `# TODO` що падають (передіснуючі, не регресія від v1.0.2):
-
-| Тест                                            | Файл                    | Проблема               |
-| ----------------------------------------------- | ----------------------- | ---------------------- |
-| `should POST document and return JSON response` | `DB.test.js:423`        | `saveDocument` mock    |
-| `should not go into infinite loop`              | `DBBrowser.test.js:164` | fetchRemote loop logic |
-| `should load document without index`            | `DBBrowser.test.js:433` | statDocument mock      |
-| `should handle missing Last-Modified header`    | `DBBrowser.test.js:451` | statDocument mock      |
-
-6 тестів `# TODO` в `DB.test.js` — resolveSync integration.
-
-### Risk Assessment
-
-| Зміна                         | Ризик       | Міра                                                             |
-| ----------------------------- | ----------- | ---------------------------------------------------------------- |
-| `fetch()` → `_fetchPrimary()` | 🔴 Breaking | Перевірити consumers на `{ error: 'Not found' }`                 |
-| `emit('change')` в save/drop  | 🟢 Safe     | Additive — нові events                                           |
-| mount routing                 | 🟡 Medium   | `fetchRemote()` використовує `this.host` — verify URL resolution |
-
-### Verification
-
-```bash
-pnpm test:all
-pnpm release:spec
-```
+#.

@@ -34,26 +34,69 @@ export async function runDBBrowserDemo(console) {
 		'index.txtl': 'users.json 1 1\nposts.json 1 1\nindex.json 3 3',
 	}
 
-	// ------------------- 2. Start temporary HTTP server ------------
+	// Data for Fallback DB
+	const fallbackFiles = {
+		'shared-config.json': { theme: 'dark', language: 'uk' },
+	}
+
+	// ------------------- 2. Start temporary HTTP servers ------------
 	const { server, port } = await startServer(demoFiles)
+	const { server: fallbackServer, port: fallbackPort } = await startServer(fallbackFiles)
 
 	try {
-		// ------------------- 3. Initialise DBBrowser ---------------
+		// ------------------- 3. Initialise DBBrowsers ---------------
 		const db = new DBBrowser({
 			host: `http://localhost:${port}`,
 			root: '/',
 			timeout: 8_000,
-			fetchFn: fetch, // native fetch works with the real server
+			fetchFn: fetch,
 			console: console,
 		})
 
-		await db.connect()
+		const fallbackDb = new DBBrowser({
+			host: `http://localhost:${fallbackPort}`,
+			root: '/',
+			timeout: 8_000,
+			fetchFn: fetch,
+			console: console,
+		})
 
-		console.clear()
-		console.success('DBBrowser Demo')
+		// UDA 2.0: Attach fallback DB
+		db.attach(fallbackDb)
+
+		await db.connect()
+		await fallbackDb.connect()
+
+		// console.clear()
+		console.success('DBBrowser Demo (UDA 2.0 Enhanced)')
 		console.info('Demonstrating browser database operations with live server data')
 
+		// UDA 2.0: Setup change event logging
+		db.on('change', (event) => {
+			console.info(
+				Logger.style(`\n🔔 EVENT: Document "${event.uri}" changed (type: ${event.type})`, {
+					color: 'magenta',
+				}),
+			)
+			if (event.data) {
+				console.debug('Payload:', JSON.stringify(event.data))
+			}
+		})
+
 		// ------------------- 4. Demo actions -----------------------
+
+		// ---- UDA 2.0: Fallback Chain ------------------------------------
+		console.info('\n🔗 UDA 2.0: Testing Fallback Chain:')
+		console.info('Fetching "shared-config.json" (missing on primary, present on fallback)...')
+		try {
+			const config = await db.fetch('shared-config.json')
+			console.success('Successfully fetched from fallback DB:')
+			console.info(JSON.stringify(config, null, 2))
+		} catch (e) {
+			console.error('Fallback failed:', e.message)
+		}
+		await pause(1000)
+
 		// ---- Fetch users ------------------------------------------------
 		console.info('\n📄 Fetching users document:')
 		try {
@@ -61,26 +104,6 @@ export async function runDBBrowserDemo(console) {
 			console.info(JSON.stringify(users, null, 2))
 		} catch (e) {
 			console.error('Failed to fetch users:', e.message)
-		}
-		await pause(500)
-
-		// ---- Fetch posts ------------------------------------------------
-		console.info('\n📄 Fetching posts document:')
-		try {
-			const posts = await db.fetch('posts.json')
-			console.info(JSON.stringify(posts, null, 2))
-		} catch (e) {
-			console.error('Failed to fetch posts:', e.message)
-		}
-		await pause(500)
-
-		// ---- Get globals (optional, ignore errors) --------------------
-		console.info('\n⚙️  Getting globals from nested path:')
-		try {
-			const globals = await db.getGlobals('some/deep/path/file.txt')
-			console.info(JSON.stringify(globals, null, 2))
-		} catch (e) {
-			console.warn('Globals not available – ignored:', e.message)
 		}
 		await pause(500)
 
@@ -110,55 +133,30 @@ export async function runDBBrowserDemo(console) {
 		}
 		await pause(500)
 
-		// ---- Save a new document ---------------------------------------
-		console.info('\n📄 Saving new document:')
+		// ---- UDA 2.0: Save & Event -------------------------------------
+		console.info('\n📄 Saving new document (should trigger change event):')
 		try {
 			const result = await db.saveDocument('new-file.json', { test: 'value' })
-			console.info('Save result:', result)
+			console.info('Save result:', JSON.stringify(result, null, 2))
 		} catch (e) {
 			console.error('Save failed:', e.message)
 		}
-		await pause(500)
+		await pause(1000)
 
-		// ---- Write (update) an existing document -----------------------
-		console.info('\n📄 Writing updated document:')
-		try {
-			const result = await db.writeDocument('users.json', [
-				{ id: 1, name: 'Alice Cooper', email: 'alice@example.com' },
-				{ id: 2, name: 'Bob Marley', email: 'bob@example.com' },
-				{ id: 3, name: 'Charlie Brown', email: 'charlie@example.com' },
-			])
-			console.info('Write result:', result)
-		} catch (e) {
-			console.error('Failed to write document:', e.message)
-		}
-		await pause(500)
-
-		// ---- Delete the previously created document --------------------
-		console.info('\n📄 Dropping document:')
+		// ---- UDA 2.0: Drop & Event -------------------------------------
+		console.info('\n📄 Dropping document (should trigger change event):')
 		try {
 			const result = await db.dropDocument('new-file.json')
 			console.info('Drop result:', result)
 		} catch (e) {
 			console.error('Failed to drop document:', e.message)
 		}
-		await pause(500)
-
-		// ---- Extract a DB subset ----------------------------------------
-		console.info('\n📂 Extracting DB subset:')
-		try {
-			const subDB = db.extract('posts.json')
-			console.info('Subset root:', subDB.root)
-			console.info('Subset instanceof DBBrowser:', subDB instanceof DBBrowser)
-		} catch (e) {
-			console.error('Failed to extract subset:', e.message)
-		}
+		await pause(1000)
 
 		console.success('\nDBBrowser demo completed! 🌐')
 	} finally {
 		// ------------------- 5. Clean up ---------------------------
-		server.close(() => {
-			console.info('Demo HTTP server stopped')
-		})
+		server.close(() => console.info('Primary Demo HTTP server stopped'))
+		fallbackServer.close(() => console.info('Fallback Demo HTTP server stopped'))
 	}
 }

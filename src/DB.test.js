@@ -421,24 +421,24 @@ suite('DBBrowser (DB tests -- network mocked)', () => {
 
 	describe('saveDocument', () => {
 		it('should POST document and return JSON response', async () => {
-			let value
+			let capturedInit
 			const db = new DBBrowser({
 				host: 'https://localhost',
-				fetchFn: mockFetch([
-					[
-						'POST https://localhost/save.json',
-						(data) => {
-							value = data
-							return true
-						},
-					],
-					['GET https://localhost', value],
-				]),
+				fetchFn: async (url, init) => {
+					capturedInit = init
+					return {
+						ok: true,
+						status: 200,
+						headers: new Map(),
+						json: async () => ({ saved: true }),
+					}
+				},
 			})
 			await db.connect()
 			const result = await db.saveDocument('save.json', { foo: 'bar' })
-			assert.deepStrictEqual(value.body, JSON.stringify({ foo: 'bar' }))
-			assert.deepStrictEqual(result, true)
+			assert.equal(capturedInit.method, 'POST')
+			assert.deepStrictEqual(capturedInit.body, JSON.stringify({ foo: 'bar' }))
+			assert.deepStrictEqual(result, { saved: true })
 		})
 	})
 
