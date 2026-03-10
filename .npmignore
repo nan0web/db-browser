@@ -25,3 +25,7 @@ me.md
 # Generated
 dist/
 .cache/
+
+# Private agent
+.agent
+.agent/
