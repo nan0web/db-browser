@@ -97,7 +97,7 @@ export function resolveSync(context, ...args) {
 		return href
 	} catch (error) {
 		// Fallback to simple path resolution
-		console.error('Error in resolveSync', { args, error })
+		// Omitted console.error to avoid spamming console with <anonymous code> paths from sourcemaps
 		return resolveSyncSimple(context, ...args)
 	}
 }

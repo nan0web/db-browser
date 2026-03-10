@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
-import DBBrowser from '../../../../DBBrowser.js'
+import DBBrowser from '../../../../../DBBrowser.js'
 
 /**
  * Release v1.0.2 — HTTP 403 Retry (Regression)
